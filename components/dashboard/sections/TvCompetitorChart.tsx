@@ -1,6 +1,7 @@
 "use client";
-// TV competitors: ถกไม่เถียง's rating against same-slot channels or fixed
-// news/talk shows, from the TV workbook (lib/dashboard/competitors.ts).
+// TV competitors: a program's rating against same-slot channels or fixed
+// news/talk shows, from the TV workbook (lib/dashboard/competitors.ts). Only the
+// programs picked in the รายการ filter, and only tabs that have competitors.
 import { useEffect, useMemo, useState } from "react";
 import { programMatches } from "@/lib/dashboard/programFilter";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -40,7 +41,12 @@ export function TvCompetitorChart({ rows, program, startDate, endDate, grain }: 
     () => [...(sources || [])].sort((a, b) => Number(/gmm/i.test(a.channel)) - Number(/gmm/i.test(b.channel))),
     [sources],
   );
-  const source = ordered.find((s) => s.sourceId === picked) || ordered[0];
+  // Tabs of the picked programs that carry competitors (เงินทองของจริง's have none).
+  const available = useMemo(() => ordered.filter((s) => s.rows.length && programMatches(program, s.program)), [ordered, program]);
+  const withData = [...new Set(ordered.filter((s) => s.rows.length).map((s) => s.program))];
+  const manyPrograms = new Set(available.map((s) => s.program)).size > 1;
+  const source = available.find((s) => s.sourceId === picked) || available[0];
+  const ownName = source?.program || "";
   const hasSlots = !!source?.rows.some((r) => !r.competitorChannel);
   const view: CompetitorMode = mode === "slot" && !hasSlots ? "channel" : mode;
 
@@ -65,7 +71,6 @@ export function TvCompetitorChart({ rows, program, startDate, endDate, grain }: 
     () => (source ? competitorRanking(source.rows, own, view, startDate, endDate) : []),
     [source, own, view, startDate, endDate],
   );
-  const otherProgram = !!source && !programMatches(program, source.program);
   const skipped = useMemo(() => (source ? outOfRange(source.rows, startDate, endDate) : []), [source, startDate, endDate]);
   const colorOf = (key: string, i: number) => (key === OWN_KEY ? OWN_COLOR : TOPIC_COLORS[(i + 1) % TOPIC_COLORS.length]);
 
@@ -75,15 +80,15 @@ export function TvCompetitorChart({ rows, program, startDate, endDate, grain }: 
         <div>
           <h2>คู่แข่ง TV</h2>
           <p>
-            Rating ของถกไม่เถียงเทียบ{view === "channel" ? "ช่องคู่แข่งช่วงเวลาเดียวกัน" : "รายการข่าว / ทอล์กที่ใช้เทียบ"} ·{" "}
+            Rating ของ{ownName || "รายการ"}เทียบ{view === "channel" ? "ช่องคู่แข่งช่วงเวลาเดียวกัน" : "รายการข่าว / ทอล์กที่ใช้เทียบ"} ·{" "}
             {grain === "day" ? "รายวัน" : "รายเดือน"} · ค่าดิบจากไฟล์ TV
           </p>
         </div>
         <div className="ranking-controls">
           <div className="segmented">
-            {ordered.map((s) => (
+            {available.map((s) => (
               <button key={s.sourceId} className={source?.sourceId === s.sourceId ? "active" : ""} onClick={() => setPicked(s.sourceId)}>
-                {s.channel}
+                {manyPrograms ? `${s.program} · ${s.channel}` : s.channel}
               </button>
             ))}
           </div>
@@ -101,9 +106,13 @@ export function TvCompetitorChart({ rows, program, startDate, endDate, grain }: 
       {error && <p className="growth-notice warn">โหลดข้อมูลคู่แข่งไม่สำเร็จ: {error}</p>}
       {!sources && !error && <p className="growth-notice">กำลังโหลดข้อมูลคู่แข่ง…</p>}
       {sources && !sources.length && <p className="growth-notice">ยังไม่มีข้อมูลคู่แข่ง · อัปโหลดไฟล์ TV แล้ว sync แบบเขียนจริงก่อน</p>}
-      {otherProgram && <p className="growth-notice">มีข้อมูลคู่แข่งเฉพาะ{source?.program} · เลือกรายการ “{source?.program}” หรือ “ทั้งหมด” ในตัวกรองด้านบน</p>}
+      {sources && !!sources.length && !source && (
+        <p className="growth-notice">
+          รายการที่เลือกไม่มีข้อมูลคู่แข่งในไฟล์ TV{withData.length ? ` · มีเฉพาะ${withData.join(", ")}` : ""}
+        </p>
+      )}
 
-      {skipped.length > 0 && !otherProgram && (
+      {skipped.length > 0 && source && (
         <p className="growth-notice warn">
           ไม่นำมาคำนวณ {skipped.length} ค่า เพราะ rating อยู่นอกช่วง 0–30 (น่าจะพิมพ์ผิดในไฟล์ TV):{" "}
           {skipped
@@ -113,7 +122,7 @@ export function TvCompetitorChart({ rows, program, startDate, endDate, grain }: 
           {" "}· แก้ในไฟล์แล้วอัปโหลดใหม่
         </p>
       )}
-      {source && trend && !otherProgram && (
+      {source && trend && (
         <div className="tv-competitor-grid">
           <div className="chart-lg">
             {trend.points.length ? (
@@ -149,7 +158,7 @@ export function TvCompetitorChart({ rows, program, startDate, endDate, grain }: 
                     <th>#</th>
                     <th>{view === "channel" ? "ช่อง" : "รายการ"}</th>
                     <th className="num">Rating เฉลี่ย</th>
-                    <th className="num">ถกไม่เถียงชนะ</th>
+                    <th className="num">{ownName}ชนะ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -169,7 +178,7 @@ export function TvCompetitorChart({ rows, program, startDate, endDate, grain }: 
             ) : (
               <p className="ranking-empty">ไม่มีข้อมูลในช่วงนี้</p>
             )}
-            <p className="audience-note">“ถกไม่เถียงชนะ” = % ของวันที่ออกอากาศทั้งคู่ ที่ rating ถกไม่เถียงสูงกว่า</p>
+            <p className="audience-note">“{ownName}ชนะ” = % ของวันที่ออกอากาศทั้งคู่ ที่ rating {ownName}สูงกว่า</p>
           </div>
         </div>
       )}
