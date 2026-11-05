@@ -66,6 +66,7 @@ import { thumbOf, writeThumbnails } from "../lib/integrations/thumbnailWriter.ts
 import { apiCoversAccount, compareSources, listVideos, loadAccounts, mapTikTokVideo, refreshAccessToken, saveAccount } from "../lib/integrations/tiktokApi.ts";
 import { mergeTvEpisodes, parseTvSheet } from "../lib/integrations/tvSheet.ts";
 import { nameEpisodes } from "../lib/integrations/tvEpisodeNames.ts";
+import { collectAccountStats, metricoolTimeline } from "../lib/integrations/accountStatsCollect.ts";
 import { downloadAnonymousLink, downloadSharedFile, graphCredentials, graphToken, sharedFileModified } from "../lib/integrations/sharepoint.ts";
 import { buildEmail, cleanRecipients, integrationProblems, sendEmail, shouldNotify } from "../lib/integrations/notify.ts";
 import { excelDate, isPlainDay } from "../lib/dashboard/normalize.ts";
@@ -641,6 +642,21 @@ try {
     }
   }
   mark("เขียนรายได้ YouTube (API)");
+  // ผู้ติดตาม board: each account's daily followers (lib/integrations/accountStatsCollect.ts); never fails the run.
+  try {
+    const timeline = process.env.METRICOOL_USER_ID && process.env.METRICOOL_API_TOKEN ? metricoolTimeline(process.env.METRICOOL_USER_ID, process.env.METRICOOL_API_TOKEN) : undefined;
+    const st = await collectAccountStats(fsdb, today, { timeline, youtubeKey: process.env.YOUTUBE_API_KEY });
+    if (st.accounts) {
+      console.log(`followers: ${st.updated} accounts${st.problems.length ? ` · ${st.problems.length} problem(s): ${st.problems.join(" | ")}` : ""}`);
+      integrations["ผู้ติดตาม"] = st.problems.length
+        ? { ok: false, detail: `อัปเดต ${st.updated - st.problems.length} จาก ${st.accounts} บัญชี`, error: st.problems.slice(0, 3).join(" · ") }
+        : { ok: true, detail: `อัปเดต ${st.updated} บัญชี` };
+    }
+  } catch (e) {
+    console.error(`followers not collected: ${e.message}`);
+    integrations["ผู้ติดตาม"] = { ok: false, detail: "ไม่ได้ดึง", error: String(e.message).slice(0, 160) };
+  }
+  mark("ผู้ติดตาม");
   // Comments for วิเคราะห์คลิป (lib/integrations/commentsCollect.ts); never fails the run.
   try {
     const num = (v) => Number(String(v ?? "").replace(/,/g, "")) || 0;

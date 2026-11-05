@@ -1,0 +1,201 @@
+/* ผู้ติดตาม board */
+.followers-board {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #0b1020;
+  border-radius: 16px;
+  padding: 18px;
+}
+.followers-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  color: #fff;
+}
+.followers-hero > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.followers-hero strong {
+  font-size: 56px;
+  line-height: 1;
+  color: #ff3b3f;
+  font-weight: 900;
+}
+.followers-hero small {
+  color: #a3abbd;
+  font-size: 11px;
+}
+.followers-group header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  border-bottom: 1px solid #263049;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+.followers-group header > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.followers-group header small {
+  color: #a3abbd;
+  font-weight: 600;
+  font-size: 12px;
+}
+.followers-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid #ffffff55;
+}
+.followers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.followers-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  min-width: 0;
+}
+.followers-card.active {
+  border-color: #ff3b3f;
+}
+.followers-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  object-fit: contain;
+  flex: none;
+}
+.followers-logo.text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef1f6;
+  color: #43506a;
+  font-size: 12px;
+  font-weight: 800;
+}
+.followers-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.followers-num {
+  color: #e0262b;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.followers-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.followers-pill {
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 5px;
+  padding: 1px 6px;
+  flex: none;
+}
+.followers-title {
+  font-size: 12px;
+  color: #1f2533;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.followers-meta {
+  font-size: 11px;
+  color: #6b7488;
+}
+.followers-meta .up { color: #067647; }
+.followers-meta .down { color: #b42318; }
+.followers-manual {
+  background: #fff4d6;
+  color: #7a5200;
+  border-radius: 4px;
+  padding: 0 5px;
+}
+.followers-total-label {
+  font-size: 16px;
+  font-weight: 800;
+}
+.followers-views {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #ffcc33;
+  font-size: 13px;
+  font-weight: 700;
+}
+.followers-views b {
+  font-size: 20px;
+}
+.followers-detail {
+  margin-top: 14px;
+}
+.followers-detail h3 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+@media (max-width: 640px) {
+  .followers-grid { grid-template-columns: 1fr; }
+  .followers-hero strong { font-size: 44px; }
+  .followers-views { text-align: left; }
+}
+
+/* บัญชีโซเชียล (admin) */
+.social-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.social-logo-pick {
+  width: 56px;
+  height: 56px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  font-size: 10px;
+  color: #6b7488;
+  text-align: center;
+  background: #fff;
+}
+.social-logo-pick img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.social-grid {
+  grid-template-columns: 1.2fr 1fr 0.8fr 1fr 1.1fr;
+}

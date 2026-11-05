@@ -34,11 +34,11 @@ import {
   Upload,
   User as UserIcon,
   Users,
-  X, MonitorPlay, GitFork } from "lucide-react";
+  X, MonitorPlay, GitFork, UsersRound } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 import { can, type Perm } from "@/lib/auth/permissions";
 
-type Tab = "overview" | "platform" | "programs" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help" | "monthly";
+type Tab = "overview" | "platform" | "programs" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help" | "monthly" | "followers";
 
 interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMenuOpen" | "setSourceOpen"> {
   currentUser?: AuthUser | null;
@@ -49,6 +49,7 @@ interface DashboardSidebarProps extends Pick<DashboardModel, "menuOpen" | "setMe
   openSyncStatus?: () => void;
   openTvSources?: () => void;
   openProgramSplits?: () => void;
+  openSocialAccounts?: () => void;
   openTvUpload?: () => void;
   openNotifications?: () => void;
   onOpenUserManagement?: () => void;
@@ -75,6 +76,7 @@ const GROUPS: { id: string; label: string; items: NavItem[]; adminOnly?: boolean
       { id: "best", label: "Top 10 ประเด็น", icon: <Trophy /> },
       { id: "compare", label: "ผลงานรายเทป", icon: <FileSpreadsheet /> },
       { id: "monthly-report", label: "รายงานรายเดือน", icon: <Presentation />, tab: "monthly", perm: "monthlyReport" },
+      { id: "followers", label: "ผู้ติดตาม", icon: <UsersRound />, tab: "followers" },
     ],
   },
   {
@@ -152,6 +154,7 @@ export function DashboardSidebar({
   openSyncStatus,
   openTvSources,
   openProgramSplits,
+  openSocialAccounts,
   openTvUpload,
   openNotifications,
   onOpenUserManagement,
@@ -324,6 +327,11 @@ export function DashboardSidebar({
                   {openProgramSplits && (
                     <button type="button" onClick={run(openProgramSplits)}>
                       <GitFork /> แยกรายการย่อย
+                    </button>
+                  )}
+                  {openSocialAccounts && (
+                    <button type="button" onClick={run(openSocialAccounts)}>
+                      <UsersRound /> บัญชีโซเชียล
                     </button>
                   )}
                   {openNotifications && (

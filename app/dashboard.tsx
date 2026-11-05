@@ -37,6 +37,8 @@ import { SectionTabs } from "@/components/dashboard/sections/SectionTabs";
 import { SyncStatusModal } from "@/components/dashboard/sections/SyncStatusModal";
 import { TvSourcesModal } from "@/components/dashboard/sections/TvSourcesModal";
 import { ProgramSplitsModal } from "@/components/dashboard/sections/ProgramSplitsModal";
+import { FollowersSection } from "@/components/dashboard/sections/FollowersSection";
+import { SocialAccountsModal } from "@/components/dashboard/sections/SocialAccountsModal";
 import { TvUploadModal } from "@/components/dashboard/sections/TvUploadModal";
 import { NotificationsModal } from "@/components/dashboard/sections/NotificationsModal";
 import { TvZoneMap } from "@/components/dashboard/sections/TvZoneMap";
@@ -60,7 +62,7 @@ const MOBILE_QUERY = "(max-width: 800px)";
 
 export default function Dashboard() {
   const auth = useAuth();
-  const [activeTab, setActiveTab] = useState<"overview" | "platform" | "programs" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help" | "monthly">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "platform" | "programs" | "search" | "trending" | "revenue" | "affiliate" | "growth" | "quality" | "thumbnail" | "youtube" | "acc" | "advice" | "help" | "monthly" | "followers">("overview");
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -71,6 +73,7 @@ export default function Dashboard() {
   const [passwordSetFor, setPasswordSetFor] = useState<string | null>(null);
   const [tvSourcesOpen, setTvSourcesOpen] = useState(false);
   const [programSplitsOpen, setProgramSplitsOpen] = useState(false);
+  const [socialAccountsOpen, setSocialAccountsOpen] = useState(false);
   const [tvUploadOpen, setTvUploadOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   // undefined = not loaded; null = no sync has run yet.
@@ -184,6 +187,7 @@ export default function Dashboard() {
         syncStatus={syncStatus}
         openTvSources={() => setTvSourcesOpen(true)}
         openProgramSplits={() => setProgramSplitsOpen(true)}
+        openSocialAccounts={() => setSocialAccountsOpen(true)}
         openTvUpload={() => setTvUploadOpen(true)}
         openNotifications={() => setNotificationsOpen(true)}
         onOpenUserManagement={() => setUserManagementOpen(true)}
@@ -299,6 +303,8 @@ export default function Dashboard() {
         {activeTab === "monthly" && perms.monthlyReport && (
           <MonthlyReportSection rows={model.rows} program={model.program} latestDate={model.dataLatestDate} isAdmin={isAdmin} userName={auth.user?.name || auth.user?.email || ""} />
         )}
+
+        {activeTab === "followers" && <FollowersSection rows={model.rows} isAdmin={isAdmin} openSettings={() => setSocialAccountsOpen(true)} />}
 
         {activeTab === "help" && <HelpSection isAdmin={isAdmin || perms.advanced} />}
 
@@ -502,6 +508,7 @@ export default function Dashboard() {
         status={syncStatus ?? null}
         userEmail={auth.user?.email || ""}
       />
+      <SocialAccountsModal open={socialAccountsOpen && isAdmin} onClose={() => setSocialAccountsOpen(false)} userEmail={auth.user?.email || ""} />
       <ProgramSplitsModal
         open={programSplitsOpen && isAdmin}
         onClose={() => setProgramSplitsOpen(false)}

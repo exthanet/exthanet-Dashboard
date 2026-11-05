@@ -216,6 +216,19 @@ service cloud.firestore {
       allow read: if isActive();
       allow write: if isAdmin();
     }
+    // ผู้ติดตาม board: the account list (names, logos, typed numbers) admins edit, and
+    // each account's daily followers, written by the sync only. Everyone signed in reads.
+    match /socialAccounts/{doc} {
+      allow read: if isActive();
+      allow write: if isAdmin() && doc == "config"
+        && request.resource.data.keys().hasOnly(["accounts", "updatedAt", "updatedBy"])
+        && request.resource.data.accounts is list
+        && request.resource.data.accounts.size() <= 60;
+    }
+    match /accountStats/{doc} {
+      allow read: if isActive();
+      allow write: if false;
+    }
     // Compact gzipped copy of masterData for opening the dashboard fast; written
     // by the sync (service account) or by an admin right after saving masterData.
     match /dashboardCache/{doc} {
