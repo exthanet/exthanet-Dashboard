@@ -2,15 +2,16 @@
 // ผู้ติดตาม: every company account and its followers, grouped by platform or by show
 // (รายการ), with the total and the online views of the last 12 months from masterData.
 // Numbers come from accountStats (the daily sync); an account without an API shows the
-// admin's typed number marked "รอตรวจสอบ". Click a card for its daily followers;
-// download the board as PNG.
+// admin's typed number marked "รอตรวจสอบ". Click a card for a popup with its daily
+// followers and a link to the account; download the board as CSV.
 import { useEffect, useMemo, useState } from "react";
-import { Download, Settings } from "lucide-react";
+import { Download, ExternalLink, Settings, X } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import {
   PLATFORM_LABEL,
   SOCIAL_PLATFORMS,
+  accountUrl,
   boardTotal,
   currentFollowers,
   followersOn,
@@ -131,6 +132,8 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
     () => (pickedAccount ? Object.entries(stats[pickedAccount.id]?.series || {}).sort().map(([date, value]) => ({ date, value })) : []),
     [pickedAccount, stats],
   );
+  const pickedNow = pickedAccount ? currentFollowers(pickedAccount, stats[pickedAccount.id]) : null;
+  const pickedGrowth = pickedAccount ? growth(pickedAccount) : null;
 
   return (
     <article className="panel full followers-board-panel" id="followers">
@@ -153,8 +156,8 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
               <Settings size={14} /> ตั้งค่าบัญชี
             </button>
           )}
-          <button className="tv-add" onClick={() => drawBoard(groups, view, stats, total, views12, updated)} disabled={!shown.length}>
-            <Download size={14} /> ดาวน์โหลด PNG
+          <button className="tv-add" onClick={() => downloadCsv(groups, view, stats, growth)} disabled={!shown.length}>
+            <Download size={14} /> ดาวน์โหลด CSV
           </button>
         </div>
       </div>
@@ -200,7 +203,20 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                   const gr = growth(a);
                   const problem = a.source !== "manual" && stats[a.id]?.error;
                   return (
-                    <button key={a.id} className={`followers-card ${picked === a.id ? "active" : ""}`} onClick={() => setPicked(picked === a.id ? "" : a.id)} title={problem || ""}>
+                    <div
+                      key={a.id}
+                      role="button"
+                      tabIndex={0}
+                      className={`followers-card ${picked === a.id ? "active" : ""}`}
+                      onClick={() => setPicked(a.id)}
+                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setPicked(a.id))}
+                      title={problem || ""}
+                    >
+                      {accountUrl(a) && (
+                        <a className="followers-open" href={accountUrl(a)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} aria-label={`เปิด ${a.name} บน ${PLATFORM_LABEL[a.platform]}`}>
+                          <ExternalLink size={14} />
+                        </a>
+                      )}
                       {a.logo ? <img src={a.logo} alt="" className="followers-logo" /> : <span className="followers-logo text">{initials(a.name)}</span>}
                       <span className="followers-body">
                         <span className="followers-num">{now ? full(now.value) : "–"}</span>
@@ -226,7 +242,7 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                           )}
                         </span>
                       </span>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -236,159 +252,90 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
       )}
 
       {pickedAccount && (
-        <div className="followers-detail">
-          <h3>
-            {pickedAccount.name} · {PLATFORM_LABEL[pickedAccount.platform]} · ผู้ติดตามรายวัน
-          </h3>
-          {series.length > 1 ? (
-            <div className="chart-md">
-              <ResponsiveContainer>
-                <LineChart data={series}>
-                  <CartesianGrid vertical={false} stroke="#e8edf5" />
-                  <XAxis dataKey="date" tickFormatter={dateLabel} tick={{ fontSize: 11 }} minTickGap={30} />
-                  <YAxis tick={{ fontSize: 11 }} width={70} tickFormatter={(v) => shortCount(Number(v))} domain={["auto", "auto"]} />
-                  <Tooltip labelFormatter={(v) => dateLabel(String(v))} formatter={(v) => [full(Number(v)), "ผู้ติดตาม"]} />
-                  <Line type="monotone" dataKey="value" stroke={PLATFORM_COLOR[pickedAccount.platform]} strokeWidth={2.5} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+        <div className="modal-backdrop" onClick={() => setPicked("")}>
+          <section className="source-modal sync-modal followers-popup" onClick={(e) => e.stopPropagation()}>
+            <button className="close" onClick={() => setPicked("")} aria-label="ปิด">
+              <X size={18} />
+            </button>
+            <div className="sync-heading">
+              {pickedAccount.logo ? <img src={pickedAccount.logo} alt="" className="followers-logo" /> : <span className="followers-logo text">{initials(pickedAccount.name)}</span>}
+              <div>
+                <h2>{pickedAccount.name}</h2>
+                <p>
+                  {PLATFORM_LABEL[pickedAccount.platform]} · {groupOf(pickedAccount)}
+                  {pickedAccount.source === "manual" ? ` · ${PENDING} (ยังไม่ได้ต่อ API)` : pickedAccount.source === "youtube" ? " · YouTube API" : " · Metricool"}
+                </p>
+              </div>
             </div>
-          ) : (
-            <p className="ranking-empty">
-              {pickedAccount.source === "manual" ? `${PENDING}: ยังไม่ได้ต่อ API · ตัวเลขกรอกเมื่อ ${dayTh(pickedAccount.manualDate || "")}` : "ยังมีข้อมูลไม่พอทำกราฟ"}
-            </p>
-          )}
+            <div className="followers-stats">
+              <div>
+                ผู้ติดตาม
+                <b>{pickedNow ? full(pickedNow.value) : "–"}</b>
+                {pickedNow ? dayTh(pickedNow.date) : ""}
+              </div>
+              {pickedGrowth !== null && (
+                <div>
+                  เพิ่มขึ้น 30 วัน
+                  <b>{`${pickedGrowth >= 0 ? "+" : ""}${full(pickedGrowth)}`}</b>
+                </div>
+              )}
+              {series.length > 1 && (
+                <div>
+                  ข้อมูลย้อนหลัง
+                  <b>{full(series.length)} วัน</b>
+                  ตั้งแต่ {dayTh(series[0].date)}
+                </div>
+              )}
+            </div>
+            {series.length > 1 ? (
+              <div className="chart-md">
+                <ResponsiveContainer>
+                  <LineChart data={series}>
+                    <CartesianGrid vertical={false} stroke="#e8edf5" />
+                    <XAxis dataKey="date" tickFormatter={dateLabel} tick={{ fontSize: 11 }} minTickGap={30} />
+                    <YAxis tick={{ fontSize: 11 }} width={70} tickFormatter={(v) => shortCount(Number(v))} domain={["auto", "auto"]} />
+                    <Tooltip labelFormatter={(v) => dateLabel(String(v))} formatter={(v) => [full(Number(v)), "ผู้ติดตาม"]} />
+                    <Line type="monotone" dataKey="value" stroke={PLATFORM_COLOR[pickedAccount.platform]} strokeWidth={2.5} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="ranking-empty">
+                {pickedAccount.source === "manual" ? `${PENDING}: ยังไม่ได้ต่อ API · ตัวเลขกรอกเมื่อ ${dayTh(pickedAccount.manualDate || "")}` : "ยังมีข้อมูลไม่พอทำกราฟ"}
+              </p>
+            )}
+            <div className="tv-actions">
+              {accountUrl(pickedAccount) ? (
+                <a className="followers-link" href={accountUrl(pickedAccount)} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink size={15} /> เปิดบัญชีบน {PLATFORM_LABEL[pickedAccount.platform]}
+                </a>
+              ) : (
+                <span className="sync-muted">ยังไม่มีลิงก์บัญชี · ใส่ได้ในหน้าตั้งค่าบัญชีโซเชียล</span>
+              )}
+            </div>
+          </section>
         </div>
       )}
     </article>
   );
 }
 
-/** The board as a PNG in the chosen grouping (drawn on a canvas, so it looks the same everywhere). */
-async function drawBoard(groups: Group[], view: View, stats: Record<string, AccountStat>, total: number, views12: number, updated: string) {
-  const cols = 3;
-  const cardW = 380;
-  const cardH = 92;
-  const gap = 14;
-  const pad = 40;
-  const heroH = 150;
-  const headH = 44;
-  const W = pad * 2 + cols * cardW + (cols - 1) * gap;
-  const bodyH = groups.reduce((h, g) => h + headH + Math.ceil(g.accounts.length / cols) * (cardH + gap), 0);
-  const H = pad * 2 + heroH + bodyH;
-  const scale = 2;
-  const canvas = document.createElement("canvas");
-  canvas.width = W * scale;
-  canvas.height = H * scale;
-  const ctx = canvas.getContext("2d")!;
-  ctx.scale(scale, scale);
-  ctx.fillStyle = "#0b1020";
-  ctx.fillRect(0, 0, W, H);
-  const font = (size: number, weight = 700) => `${weight} ${size}px "Noto Sans Thai", "Segoe UI", sans-serif`;
-  const all = groups.flatMap((g) => g.accounts);
-  const logos = new Map(
-    await Promise.all(
-      all.map(
-        (a) =>
-          new Promise<[string, HTMLImageElement | null]>((resolve) => {
-            if (!a.logo) return resolve([a.id, null]);
-            const img = new Image();
-            img.onload = () => resolve([a.id, img]);
-            img.onerror = () => resolve([a.id, null]);
-            img.src = a.logo;
-          }),
-      ),
-    ),
-  );
-
-  // Hero: the total and the views.
-  ctx.fillStyle = "#ff3b3f";
-  ctx.font = font(84, 900);
-  ctx.fillText(shortCount(total), pad, pad + 78);
-  const tw = ctx.measureText(shortCount(total)).width;
-  ctx.fillStyle = "#ffffff";
-  ctx.font = font(26, 900);
-  ctx.fillText("ONLINE PLATFORM", pad + tw + 24, pad + 42);
-  ctx.font = font(20, 700);
-  ctx.fillText("Followers and Subscribers", pad + tw + 24, pad + 74);
-  ctx.textAlign = "right";
-  ctx.fillStyle = "#ffcc33";
-  ctx.font = font(20, 700);
-  ctx.fillText("Total online view", W - pad, pad + 42);
-  ctx.font = font(30, 900);
-  ctx.fillText(`${shortCount(views12)} Views/Year`, W - pad, pad + 80);
-  ctx.fillStyle = "#8b93a7";
-  ctx.font = font(13, 500);
-  ctx.fillText(updated ? `ข้อมูลถึง ${dayTh(updated)} · ${PENDING} = ยังไม่ได้ต่อ API` : "", W - pad, pad + 110);
-  ctx.textAlign = "left";
-
-  let y = pad + heroH;
-  for (const g of groups) {
-    ctx.fillStyle = "#ffffff";
-    ctx.font = font(20, 800);
-    ctx.fillText(g.label, pad, y + 26);
-    ctx.fillStyle = "#8b93a7";
-    ctx.font = font(14, 600);
-    ctx.textAlign = "right";
-    ctx.fillText(`${full(g.total)} · ${g.accounts.length} บัญชี`, W - pad, y + 26);
-    ctx.textAlign = "left";
-    y += headH;
-    g.accounts.forEach((a, i) => {
-      const x = pad + (i % cols) * (cardW + gap);
-      const cy = y + Math.floor(i / cols) * (cardH + gap);
-      ctx.fillStyle = "#ffffff";
-      ctx.beginPath();
-      ctx.roundRect(x, cy, cardW, cardH, 14);
-      ctx.fill();
-      const img = logos.get(a.id);
-      if (img) ctx.drawImage(img, x + 12, cy + 12, 68, 68);
-      else {
-        ctx.fillStyle = "#eef1f6";
-        ctx.fillRect(x + 12, cy + 12, 68, 68);
-        ctx.fillStyle = "#43506a";
-        ctx.font = font(16);
-        ctx.textAlign = "center";
-        ctx.fillText(initials(a.name), x + 46, cy + 52);
-        ctx.textAlign = "left";
-      }
+/** The board as CSV (Excel opens it with Thai intact), grouped as on screen. */
+function downloadCsv(groups: Group[], view: View, stats: Record<string, AccountStat>, growth: (a: SocialAccount) => number | null) {
+  const head = ["กลุ่ม", "รายการ", "แพลตฟอร์ม", "บัญชี", "ผู้ติดตาม", "ข้อมูลวันที่", "เพิ่มขึ้น 30 วัน", "ที่มา", "ลิงก์"];
+  const lines = groups.flatMap((g) =>
+    g.accounts.map((a) => {
       const now = currentFollowers(a, stats[a.id]);
-      ctx.fillStyle = "#e0262b";
-      ctx.font = font(28, 800);
-      ctx.fillText(now ? full(now.value) : "–", x + 94, cy + 42);
-      let tx = x + 94;
-      if (view === "group") {
-        ctx.fillStyle = PLATFORM_COLOR[a.platform];
-        ctx.beginPath();
-        ctx.roundRect(tx, cy + 54, 74, 22, 6);
-        ctx.fill();
-        ctx.fillStyle = "#fff";
-        ctx.font = font(12);
-        ctx.textAlign = "center";
-        ctx.fillText(PLATFORM_LABEL[a.platform], tx + 37, cy + 70);
-        ctx.textAlign = "left";
-        tx += 82;
-      }
-      if (a.source === "manual") {
-        ctx.fillStyle = "#fff4d6";
-        ctx.beginPath();
-        ctx.roundRect(x + cardW - 92, cy + 12, 80, 22, 6);
-        ctx.fill();
-        ctx.fillStyle = "#7a5200";
-        ctx.font = font(12);
-        ctx.textAlign = "center";
-        ctx.fillText(PENDING, x + cardW - 52, cy + 28);
-        ctx.textAlign = "left";
-      }
-      ctx.fillStyle = "#1f2533";
-      ctx.font = font(16, 500);
-      let name = a.name;
-      const room = x + cardW - 14 - tx;
-      while (ctx.measureText(name).width > room && name.length > 3) name = name.slice(0, -2);
-      ctx.fillText(name === a.name ? name : `${name}…`, tx, cy + 71);
-    });
-    y += Math.ceil(g.accounts.length / cols) * (cardH + gap);
-  }
+      const gr = growth(a);
+      const source = a.source === "manual" ? PENDING : a.source === "youtube" ? "YouTube API" : "Metricool";
+      return [g.label, groupOf(a), PLATFORM_LABEL[a.platform], a.name, now ? String(now.value) : "", now?.date || "", gr === null ? "" : String(gr), source, accountUrl(a)];
+    }),
+  );
+  const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const csv = "﻿" + [head, ...lines].map((r) => r.map(cell).join(",")).join("\r\n");
   const link = document.createElement("a");
-  link.download = `followers-${view}-${updated || "board"}.png`;
-  link.href = canvas.toDataURL("image/png");
+  link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  link.download = `followers-${view === "platform" ? "by-platform" : "by-show"}-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
+  URL.revokeObjectURL(link.href);
 }

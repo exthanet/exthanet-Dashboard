@@ -3,7 +3,7 @@
 // from (Metricool brand, YouTube channel id, or typed with its date), order and on/off.
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Save, Trash2, Users, X } from "lucide-react";
-import { PLATFORM_LABEL, SEED_ACCOUNTS, SOCIAL_PLATFORMS, accountProblem, type SocialAccount, type SocialPlatform, type SocialSource } from "@/lib/dashboard/socialAccounts";
+import { PLATFORM_LABEL, SEED_ACCOUNTS, SOCIAL_PLATFORMS, accountProblem, accountUrl, type SocialAccount, type SocialPlatform, type SocialSource } from "@/lib/dashboard/socialAccounts";
 import { loadSocialAccounts, logoDataUrl, saveSocialAccounts } from "@/lib/socialAccountsData";
 import { track } from "@/lib/loadingBar";
 
@@ -181,6 +181,10 @@ export function SocialAccountsModal({ open, onClose, userEmail }: { open: boolea
                       </span>
                     </label>
                   )}
+                  <label className="social-url">
+                    <span>ลิงก์บัญชี (เปิดจากหน้าผู้ติดตาม)</span>
+                    <input value={a.url || ""} onChange={(e) => update(a.id, { url: e.target.value.trim() || undefined })} placeholder={accountUrl(a) || "https://www.facebook.com/…"} />
+                  </label>
                 </div>
                 <div className="tv-source-foot">
                   <label className="tv-toggle">

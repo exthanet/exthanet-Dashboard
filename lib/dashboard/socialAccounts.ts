@@ -34,6 +34,8 @@ export interface SocialAccount {
   /** Typed by an admin (source "manual"), with the day it was read. */
   manualValue?: number;
   manualDate?: string;
+  /** The account's page on its platform (https://…), opened from the board. */
+  url?: string;
   /** Small image as a data URL (resized in the browser). */
   logo?: string;
   /** Counted in the total and shown on the board. */
@@ -71,6 +73,7 @@ export function readAccounts(data: unknown): SocialAccount[] {
       if (a.channelId) out.channelId = String(a.channelId).trim();
       if (Number.isFinite(Number(a.manualValue)) && a.manualValue !== "" && a.manualValue !== null && a.manualValue !== undefined) out.manualValue = Number(a.manualValue);
       if (isDay(a.manualDate)) out.manualDate = String(a.manualDate);
+      if (typeof a.url === "string" && /^https:\/\/\S+$/.test(a.url.trim())) out.url = a.url.trim();
       if (typeof a.logo === "string" && a.logo.startsWith("data:image/")) out.logo = a.logo;
       return out;
     })
@@ -80,6 +83,7 @@ export function readAccounts(data: unknown): SocialAccount[] {
 /** What is missing for an account to have a number. */
 export function accountProblem(a: SocialAccount): string {
   if (!a.name) return "ใส่ชื่อ";
+  if (a.url && !/^https:\/\/\S+$/.test(a.url)) return "ลิงก์ต้องขึ้นต้นด้วย https://";
   if (a.source === "metricool" && !a.blogId) return "ใส่ Metricool brand";
   if (a.source === "metricool" && !METRICOOL_FOLLOWERS[a.platform]) return `Metricool ไม่มีผู้ติดตามของ ${PLATFORM_LABEL[a.platform]}`;
   if (a.source === "youtube" && !/^UC[\w-]{22}$/.test(a.channelId || "")) return "Channel ID ต้องขึ้นต้นด้วย UC (24 ตัวอักษร)";
@@ -117,6 +121,14 @@ export function boardTotal(accounts: SocialAccount[], stats: Record<string, Acco
 
 export const groupOf = (a: SocialAccount) => a.group || a.name;
 
+/** The link to open: the admin's, else the starting list's for the same account, else a channel id's page. */
+export function accountUrl(a: SocialAccount): string {
+  if (a.url) return a.url;
+  const seed = SEED_ACCOUNTS.find((x) => x.id === a.id)?.url;
+  if (seed) return seed;
+  return a.channelId ? `https://www.youtube.com/channel/${a.channelId}` : "";
+}
+
 /** "16.5M", "850K". */
 export function shortCount(v: number): string {
   if (v >= 1e9) return `${(v / 1e9).toFixed(1).replace(/\.0$/, "")}B`;
@@ -130,30 +142,30 @@ export function shortCount(v: number): string {
  * deck names. Numbers for accounts without an API are the deck's (an admin updates them).
  */
 export const SEED_ACCOUNTS: SocialAccount[] = [
-  { id: "tero-tiktok", name: "terodigital", group: "TERO Digital", platform: "tiktok", source: "metricool", blogId: 6487104, enabled: true },
+  { id: "tero-tiktok", url: "https://www.tiktok.com/@terodigital", name: "terodigital", group: "TERO Digital", platform: "tiktok", source: "metricool", blogId: 6487104, enabled: true },
   { id: "boxoffice-fb", name: "Thailand Box office and Entertainment", group: "Thailand Box Office", platform: "facebook", source: "manual", manualValue: 81000, enabled: true },
   { id: "hitz-fb", name: "HITZ Thailand", group: "HITZ Thailand", platform: "facebook", source: "metricool", blogId: 6500128, enabled: true },
-  { id: "tero-yt", name: "Tero Digital", group: "TERO Digital", platform: "youtube", source: "metricool", blogId: 6487104, enabled: true },
+  { id: "tero-yt", url: "https://www.youtube.com/channel/UCq2_AaNWBd0kxzR1HL2yhsw", name: "Tero Digital", group: "TERO Digital", platform: "youtube", source: "metricool", blogId: 6487104, enabled: true },
   { id: "popolay-fb", name: "Popolay Myanmar", group: "Popolay", platform: "facebook", source: "metricool", blogId: 6500109, enabled: true },
   { id: "teroradio-line", name: "TERO Radio", group: "TERO Radio", platform: "line", source: "manual", manualValue: 250310, enabled: true },
   { id: "tero-fb", name: "TERO Digital", group: "TERO Digital", platform: "facebook", source: "metricool", blogId: 6487104, enabled: true },
   { id: "chipao-line", name: "ชี้เป้าเติมโปร", group: "ชี้เป้าเติมโปร", platform: "line", source: "manual", manualValue: 260500, enabled: true },
-  { id: "hitz-yt", name: "HITZ Thailand", group: "HITZ Thailand", platform: "youtube", source: "metricool", blogId: 6500128, enabled: true },
+  { id: "hitz-yt", url: "https://www.youtube.com/channel/UCNcZ9a94asv8TOP435PaCiA", name: "HITZ Thailand", group: "HITZ Thailand", platform: "youtube", source: "metricool", blogId: 6500128, enabled: true },
   { id: "tin-fb", name: "TinDiscussion", group: "ถกไม่เถียง", platform: "facebook", source: "metricool", blogId: 6499952, enabled: true },
   { id: "thaiwave-fb", name: "Thaiwaveclub", group: "Thaiwave", platform: "facebook", source: "manual", manualValue: 7200, enabled: true },
   { id: "hitz-x", name: "HITZ Thailand", group: "HITZ Thailand", platform: "x", source: "manual", manualValue: 47900, enabled: true },
   { id: "ngt-fb", name: "เงินทองของจริง", group: "เงินทองของจริง", platform: "facebook", source: "metricool", blogId: 6499961, enabled: true },
   { id: "letsplay-fb", name: "Let's Play AI", group: "Let's Play AI", platform: "facebook", source: "manual", manualValue: 11000, enabled: true },
-  { id: "hitz-tiktok", name: "hitzthailand", group: "HITZ Thailand", platform: "tiktok", source: "metricool", blogId: 6500128, enabled: true },
+  { id: "hitz-tiktok", url: "https://www.tiktok.com/@hitzthailand", name: "hitzthailand", group: "HITZ Thailand", platform: "tiktok", source: "metricool", blogId: 6500128, enabled: true },
   { id: "teronews-fb", name: "TERO News", group: "TERO News", platform: "facebook", source: "metricool", blogId: 6499969, enabled: true },
   { id: "letsplay-yt", name: "Let's Play AI", group: "Let's Play AI", platform: "youtube", source: "manual", manualValue: 9240, enabled: true },
   { id: "hitz-ig", name: "HITZ Thailand", group: "HITZ Thailand", platform: "instagram", source: "metricool", blogId: 6500128, enabled: true },
   // In Metricool but not on the deck: off until an admin turns them on.
   { id: "tin-ig", name: "ถกไม่เถียง", group: "ถกไม่เถียง", platform: "instagram", source: "metricool", blogId: 6499952, enabled: false },
   { id: "tin-tiktok", name: "ถกไม่เถียง", group: "ถกไม่เถียง", platform: "tiktok", source: "metricool", blogId: 6499952, enabled: false },
-  { id: "tin-yt", name: "ถกไม่เถียง กับ ทิน", group: "ถกไม่เถียง", platform: "youtube", source: "metricool", blogId: 6499952, enabled: false },
+  { id: "tin-yt", url: "https://www.youtube.com/channel/UCLZd__C13KacoUKip4I5cJw", name: "ถกไม่เถียง กับ ทิน", group: "ถกไม่เถียง", platform: "youtube", source: "metricool", blogId: 6499952, enabled: false },
   { id: "tero-ig", name: "TERO Digital", group: "TERO Digital", platform: "instagram", source: "metricool", blogId: 6487104, enabled: false },
   { id: "kids-fb", name: "Kids Fun คิดฝัน", group: "Kids Fun คิดฝัน", platform: "facebook", source: "metricool", blogId: 6499994, enabled: false },
   { id: "kids-tiktok", name: "Kids Fun คิดฝัน", group: "Kids Fun คิดฝัน", platform: "tiktok", source: "metricool", blogId: 6499994, enabled: false },
-  { id: "kids-yt", name: "Kids Fun คิดฝัน", group: "Kids Fun คิดฝัน", platform: "youtube", source: "metricool", blogId: 6499994, enabled: false },
+  { id: "kids-yt", url: "https://www.youtube.com/channel/UCrMym6dFPiXrRfzTvgs5WnQ", name: "Kids Fun คิดฝัน", group: "Kids Fun คิดฝัน", platform: "youtube", source: "metricool", blogId: 6499994, enabled: false },
 ];

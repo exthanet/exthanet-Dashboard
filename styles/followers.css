@@ -199,3 +199,48 @@
 .social-grid {
   grid-template-columns: 1.2fr 1fr 0.8fr 1fr 1.1fr;
 }
+.social-grid .social-url {
+  grid-column: 1 / -1;
+}
+.followers-card {
+  position: relative;
+}
+.followers-open {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  color: #6b7488;
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 6px;
+}
+.followers-open:hover {
+  background: #eef1f6;
+  color: #0757e8;
+}
+.followers-popup .followers-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.followers-popup .followers-stats div {
+  background: #f5f7fb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #53627a;
+}
+.followers-popup .followers-stats b {
+  display: block;
+  font-size: 18px;
+  color: #1f2533;
+}
+.followers-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #0757e8;
+  text-decoration: none;
+}
