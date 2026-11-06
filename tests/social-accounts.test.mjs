@@ -94,3 +94,15 @@ test("Metricool timeline: the day of each point, in order of the reply", async (
   assert.match(url, /metric=pageFollows/);
   assert.doesNotMatch(url, /secret/);
 });
+
+test("logo and link: uploaded first, else the brand page's Facebook picture and the brand's page on that platform", async () => {
+  const { accountLogo, accountUrl } = await import("../lib/dashboard/socialAccounts.ts");
+  const ig = { id: "z", name: "HITZ", platform: "instagram", source: "metricool", blogId: 6500128, enabled: true };
+  assert.equal(accountLogo(ig), "https://graph.facebook.com/96473393997/picture?width=200&height=200");
+  assert.equal(accountUrl(ig), "https://www.instagram.com/hitz.th");
+  assert.equal(accountUrl({ ...ig, platform: "x", blogId: 7916751 }), "https://x.com/offscriptoffrec");
+  assert.equal(accountLogo({ ...ig, logo: "data:image/png;base64,AA" }), "data:image/png;base64,AA");
+  const typed = { id: "w", name: "Thaiwave", platform: "facebook", source: "manual", url: "https://www.facebook.com/thaiwaveclub", enabled: true };
+  assert.equal(accountLogo(typed), "https://graph.facebook.com/thaiwaveclub/picture?width=200&height=200");
+  assert.equal(accountLogo({ ...typed, url: "https://line.me/R/ti/p/@x" }), "");
+});

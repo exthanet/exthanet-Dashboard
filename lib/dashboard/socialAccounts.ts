@@ -122,12 +122,47 @@ export function boardTotal(accounts: SocialAccount[], stats: Record<string, Acco
 
 export const groupOf = (a: SocialAccount) => a.group || a.name;
 
-/** The link to open: the admin's, else the starting list's for the same account, else a channel id's page. */
+/**
+ * Public ids of each Metricool brand's accounts (from Metricool's brand list; page ids and
+ * handles are public). They give every Metricool account its link and its brand's logo.
+ */
+export const BRAND_PAGES: Record<number, { facebook?: string; instagram?: string; tiktok?: string; youtube?: string; x?: string }> = {
+  6487104: { facebook: "330339053719456", instagram: "terodigital_official", tiktok: "terodigital", youtube: "UCq2_AaNWBd0kxzR1HL2yhsw" },
+  6499952: { facebook: "1781278698822805", instagram: "thok.mai.thiang", tiktok: "thokmaithiang_official", youtube: "UCLZd__C13KacoUKip4I5cJw" },
+  6499961: { facebook: "125506360642301" },
+  6499969: { facebook: "510477698991751" },
+  6499994: { facebook: "208795545878718", tiktok: "kidsfunth", youtube: "UCrMym6dFPiXrRfzTvgs5WnQ" },
+  6500109: { facebook: "977114682345581" },
+  6500128: { facebook: "96473393997", instagram: "hitz.th", tiktok: "hitzthailand", youtube: "UCNcZ9a94asv8TOP435PaCiA" },
+  7916751: { facebook: "1277806728756997", instagram: "offscript.offrecord", tiktok: "offscript.offrecord", youtube: "UCz-Lx4K3bFPeQzc8GT3tvuw", x: "offscriptoffrec" },
+};
+
+const PAGE_URL: Partial<Record<SocialPlatform, (id: string) => string>> = {
+  facebook: (id) => `https://www.facebook.com/${id}`,
+  instagram: (id) => `https://www.instagram.com/${id}`,
+  tiktok: (id) => `https://www.tiktok.com/@${id}`,
+  youtube: (id) => `https://www.youtube.com/channel/${id}`,
+  x: (id) => `https://x.com/${id}`,
+};
+
+/** The link to open: the admin's, else the starting list's, else the brand's page on that platform, else a channel id's page. */
 export function accountUrl(a: SocialAccount): string {
   if (a.url) return a.url;
   const seed = SEED_ACCOUNTS.find((x) => x.id === a.id)?.url;
   if (seed) return seed;
+  const page = a.blogId ? BRAND_PAGES[a.blogId]?.[a.platform as keyof (typeof BRAND_PAGES)[number]] : undefined;
+  if (page && PAGE_URL[a.platform]) return PAGE_URL[a.platform]!(page);
   return a.channelId ? `https://www.youtube.com/channel/${a.channelId}` : "";
+}
+
+/**
+ * The logo: the uploaded one, else the Facebook profile picture of the account's brand page
+ * (public, no sign-in), else of a Facebook page the account links to.
+ */
+export function accountLogo(a: SocialAccount): string {
+  if (a.logo) return a.logo;
+  const page = (a.blogId && BRAND_PAGES[a.blogId]?.facebook) || (a.url || "").match(/^https:\/\/(?:www\.|m\.)?facebook\.com\/(?:profile\.php\?id=)?([\w.-]+)/i)?.[1];
+  return page ? `https://graph.facebook.com/${page}/picture?width=200&height=200` : "";
 }
 
 /** "16.5M", "850K". */

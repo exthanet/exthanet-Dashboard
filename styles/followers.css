@@ -254,3 +254,6 @@
   color: #0757e8;
   text-decoration: none;
 }
+.social-logo-pick img.auto {
+  opacity: 0.85;
+}

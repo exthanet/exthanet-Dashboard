@@ -11,6 +11,7 @@ import type { RecordRow } from "@/lib/dashboard/types";
 import {
   PLATFORM_LABEL,
   SOCIAL_PLATFORMS,
+  accountLogo,
   accountUrl,
   boardTotal,
   currentFollowers,
@@ -41,6 +42,17 @@ type View = "platform" | "group";
 const full = (v: number) => v.toLocaleString("en-US");
 const dayTh = (d: string) => (d ? dateLabel(d) : "");
 const initials = (name: string) => name.replace(/[^A-Za-z0-9ก-๙]/g, "").slice(0, 4).toUpperCase();
+
+/** The uploaded logo or the brand page's Facebook picture; initials when there is none or it fails to load. */
+function Logo({ a }: { a: SocialAccount }) {
+  const [failed, setFailed] = useState(false);
+  const src = accountLogo(a);
+  return src && !failed ? (
+    <img src={src} alt="" className="followers-logo" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+  ) : (
+    <span className="followers-logo text">{initials(a.name)}</span>
+  );
+}
 
 interface Group {
   key: string;
@@ -217,7 +229,7 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                           <ExternalLink size={14} />
                         </a>
                       )}
-                      {a.logo ? <img src={a.logo} alt="" className="followers-logo" /> : <span className="followers-logo text">{initials(a.name)}</span>}
+                      <Logo a={a} />
                       <span className="followers-body">
                         <span className="followers-num">{now ? full(now.value) : "–"}</span>
                         <span className="followers-name">
@@ -258,7 +270,7 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
               <X size={18} />
             </button>
             <div className="sync-heading">
-              {pickedAccount.logo ? <img src={pickedAccount.logo} alt="" className="followers-logo" /> : <span className="followers-logo text">{initials(pickedAccount.name)}</span>}
+              <Logo a={pickedAccount} />
               <div>
                 <h2>{pickedAccount.name}</h2>
                 <p>

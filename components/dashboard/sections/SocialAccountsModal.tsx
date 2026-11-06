@@ -3,7 +3,7 @@
 // from (Metricool brand, YouTube channel id, or typed with its date), order and on/off.
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Save, Trash2, Users, X } from "lucide-react";
-import { PLATFORM_LABEL, SEED_ACCOUNTS, SOCIAL_PLATFORMS, accountProblem, accountUrl, type SocialAccount, type SocialPlatform, type SocialSource } from "@/lib/dashboard/socialAccounts";
+import { PLATFORM_LABEL, SEED_ACCOUNTS, SOCIAL_PLATFORMS, accountProblem, accountLogo, accountUrl, type SocialAccount, type SocialPlatform, type SocialSource } from "@/lib/dashboard/socialAccounts";
 import { loadSocialAccounts, logoDataUrl, saveSocialAccounts } from "@/lib/socialAccountsData";
 import { track } from "@/lib/loadingBar";
 
@@ -95,7 +95,7 @@ export function SocialAccountsModal({ open, onClose, userEmail }: { open: boolea
           </div>
         </div>
         <p className="sync-muted tv-note">
-          Metricool: ผู้ติดตามรายวันของเพจที่เชื่อมใน Metricool (ย้อนหลังได้ตั้งแต่ ม.ค. 2025) · YouTube Channel ID: จำนวน subscriber จาก YouTube (ปัดเลข) ·
+          โลโก้: ถ้าไม่อัปโหลด ใช้รูปโปรไฟล์เพจ Facebook ของ brand ใน Metricool หรือของลิงก์ Facebook ที่ใส่ · Metricool: ผู้ติดตามรายวันของเพจที่เชื่อมใน Metricool (ย้อนหลังได้ตั้งแต่ ม.ค. 2025) · YouTube Channel ID: จำนวน subscriber จาก YouTube (ปัดเลข) ·
           กรอกเอง: บัญชีที่ไม่มี API เช่น LINE OA, X หรือเพจที่ไม่ได้อยู่ใน Metricool ให้ใส่ตัวเลขพร้อมวันที่อ่าน (หน้าผู้ติดตามจะติดป้าย “รอตรวจสอบ”) · รายการ: ใช้จัดกลุ่มบนหน้าผู้ติดตาม
         </p>
 
@@ -114,8 +114,8 @@ export function SocialAccountsModal({ open, onClose, userEmail }: { open: boolea
           const problem = accountProblem(a);
           return (
             <div key={a.id} className={`tv-source social-row ${a.enabled ? "" : "off"}`}>
-              <label className="social-logo-pick" title="อัปโหลดโลโก้">
-                {a.logo ? <img src={a.logo} alt="" /> : "โลโก้"}
+              <label className="social-logo-pick" title={a.logo ? "โลโก้ที่อัปโหลด · กดเพื่อเปลี่ยน" : accountLogo(a) ? "รูปโปรไฟล์เพจ Facebook (อัตโนมัติ) · กดเพื่ออัปโหลดโลโก้แทน" : "อัปโหลดโลโก้"}>
+                {a.logo ? <img src={a.logo} alt="" /> : accountLogo(a) ? <img src={accountLogo(a)} alt="" referrerPolicy="no-referrer" className="auto" /> : "โลโก้"}
                 <input type="file" accept="image/*" hidden onChange={(e) => pickLogo(a.id, e.target.files?.[0])} />
               </label>
               <div>
