@@ -16,6 +16,7 @@ const METRICOOL_BRANDS: [number, string][] = [
   [6499994, "Kids Fun คิดฝัน"],
   [6500109, "Popolay"],
   [6500128, "HITZ Thailand"],
+  [7916751, "Off Script Off Record"],
 ];
 const SOURCE_LABEL: Record<SocialSource, string> = { metricool: "Metricool (อัตโนมัติ)", youtube: "YouTube Channel ID (อัตโนมัติ)", manual: "กรอกเอง" };
 const today = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
@@ -52,6 +53,8 @@ export function SocialAccountsModal({ open, onClose, userEmail }: { open: boolea
       return next;
     });
   const invalid = (list || []).some((a) => accountProblem(a));
+  // Accounts the starting list gained after this list was saved (e.g. Off Script), off until turned on.
+  const missingSeeds = SEED_ACCOUNTS.filter((s) => !(list || []).some((a) => a.id === s.id)).map((a) => ({ ...a, enabled: false }));
   const seed = () => setList(SEED_ACCOUNTS.map((a) => (a.source === "manual" ? { ...a, manualDate: today() } : { ...a })));
   const pickLogo = async (id: string, file?: File) => {
     if (!file) return;
@@ -224,7 +227,12 @@ export function SocialAccountsModal({ open, onClose, userEmail }: { open: boolea
           <button className="tv-add" onClick={() => setList((l) => [...(l || []), blank()])} disabled={list === null}>
             <Plus size={15} /> เพิ่มบัญชี
           </button>
-          {message && <span className="tv-ok">{message}</span>}
+          {!!list?.length && missingSeeds.length > 0 && (
+            <button className="tv-add" onClick={() => setList((l) => [...(l || []), ...missingSeeds.map((a) => ({ ...a }))])} title={missingSeeds.map((a) => `${a.name} (${PLATFORM_LABEL[a.platform]})`).join(", ")}>
+              <Plus size={15} /> เพิ่มบัญชีใหม่จากรายการตั้งต้น ({missingSeeds.length})
+            </button>
+          )}
+          {message &&<span className="tv-ok">{message}</span>}
           <button className="sync-run-link" onClick={save} disabled={saving || invalid || list === null}>
             <Save size={14} /> {saving ? "กำลังบันทึก..." : "บันทึก"}
           </button>

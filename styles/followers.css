@@ -3,9 +3,8 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  background: #0b1020;
-  border-radius: 16px;
-  padding: 18px;
+  background: transparent;
+  padding: 4px 0 0;
 }
 .followers-hero {
   display: flex;
@@ -13,7 +12,9 @@
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
-  color: #fff;
+  color: #1f2533;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e9f0;
 }
 .followers-hero > div:first-child {
   display: flex;
@@ -23,21 +24,21 @@
 .followers-hero strong {
   font-size: 56px;
   line-height: 1;
-  color: #ff3b3f;
+  color: #e0262b;
   font-weight: 900;
 }
 .followers-hero small {
-  color: #a3abbd;
+  color: #6b7488;
   font-size: 11px;
 }
 .followers-group header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  color: #fff;
+  color: #1f2533;
   font-weight: 800;
   font-size: 15px;
-  border-bottom: 1px solid #263049;
+  border-bottom: 1px solid #e5e9f0;
   padding-bottom: 6px;
   margin-bottom: 8px;
 }
@@ -47,7 +48,7 @@
   gap: 8px;
 }
 .followers-group header small {
-  color: #a3abbd;
+  color: #6b7488;
   font-weight: 600;
   font-size: 12px;
 }
@@ -56,7 +57,7 @@
   height: 10px;
   border-radius: 50%;
   display: inline-block;
-  border: 1px solid #ffffff55;
+  border: 1px solid #0000001a;
 }
 .followers-grid {
   display: grid;
@@ -68,7 +69,8 @@
   gap: 10px;
   align-items: center;
   background: #fff;
-  border: 2px solid transparent;
+  border: 1px solid #e5e9f0;
+  box-shadow: 0 1px 2px #16305b0d;
   border-radius: 12px;
   padding: 10px;
   text-align: left;
@@ -76,8 +78,11 @@
   font: inherit;
   min-width: 0;
 }
+.followers-card:hover {
+  border-color: #c9d3e3;
+}
 .followers-card.active {
-  border-color: #ff3b3f;
+  border-color: #e0262b;
 }
 .followers-logo {
   width: 52px;
@@ -149,12 +154,17 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  color: #ffcc33;
+  color: #b45309;
   font-size: 13px;
   font-weight: 700;
 }
 .followers-views b {
   font-size: 20px;
+  color: #92400e;
+}
+.followers-views small {
+  color: #6b7488;
+  font-weight: 500;
 }
 .followers-detail {
   margin-top: 14px;

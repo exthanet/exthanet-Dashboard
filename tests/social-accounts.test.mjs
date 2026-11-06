@@ -18,7 +18,7 @@ test("accounts from Firestore: odd fields cleaned, unknown platform → other, n
   ]);
   assert.equal(accountProblem(list[2]), "ใส่ตัวเลขและวันที่");
   assert.equal(accountProblem({ ...list[0], blogId: undefined }), "ใส่ Metricool brand");
-  assert.match(accountProblem({ id: "x", name: "X", platform: "x", source: "metricool", blogId: 1, enabled: true }), /ไม่มีผู้ติดตาม/);
+  assert.match(accountProblem({ id: "l", name: "L", platform: "line", source: "metricool", blogId: 1, enabled: true }), /ไม่มีผู้ติดตาม/);
   assert.match(accountProblem({ id: "y", name: "Y", platform: "youtube", source: "youtube", channelId: "abc", enabled: true }), /UC/);
 });
 
@@ -57,6 +57,7 @@ test("the sync: Metricool history on the first run, then the last week; YouTube 
       { id: "tt", name: "TERO", platform: "tiktok", source: "metricool", blogId: 1, enabled: true },
       { id: "yt", name: "AI", platform: "youtube", source: "youtube", channelId: "UCaaaaaaaaaaaaaaaaaaaaaa", enabled: true },
       { id: "line", name: "Radio", platform: "line", source: "manual", manualValue: 250310, manualDate: "2026-11-01", enabled: true },
+      { id: "x", name: "HITZ", platform: "x", source: "metricool", blogId: 2, enabled: true },
     ] },
     "accountStats/tt": { series: { "2026-10-01": 5 } },
   });
@@ -64,12 +65,15 @@ test("the sync: Metricool history on the first run, then the last week; YouTube 
   const timeline = async (blog, network, metric, from, to) => {
     asked.push([network, metric, from, to]);
     if (network === "tiktok") throw new Error("Metricool 403");
+    if (network === "twitter") return [["2026-11-05", 213]];
     return [["2025-01-02", 10], ["2026-11-04", 20]];
   };
   const fetcher = async () => ({ ok: true, json: async () => ({ items: [{ id: "UCaaaaaaaaaaaaaaaaaaaaaa", statistics: { subscriberCount: "9240" } }] }) });
   const r = await collectAccountStats(db, "2026-11-05", { timeline, youtubeKey: "k", fetcher });
-  assert.equal(r.updated, 4);
-  assert.deepEqual(asked, [["facebook", "pageFollows", "2025-01-01", "2026-11-05"], ["tiktok", "followers_count", "2026-10-01", "2026-11-05"]]);
+  assert.equal(r.updated, 5);
+  // X is "twitter" in Metricool.
+  assert.deepEqual(asked, [["facebook", "pageFollows", "2025-01-01", "2026-11-05"], ["tiktok", "followers_count", "2026-10-01", "2026-11-05"], ["twitter", "followers", "2025-01-01", "2026-11-05"]]);
+  assert.deepEqual(decodeFields(db.store.get("accountStats/x").fields).latest, { date: "2026-11-05", value: 213 });
   assert.equal(r.problems.length, 1);
   const read = (id) => decodeFields(db.store.get(`accountStats/${id}`).fields);
   assert.deepEqual(read("fb").latest, { date: "2026-11-04", value: 20 });

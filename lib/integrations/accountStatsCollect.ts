@@ -85,7 +85,7 @@ export async function collectAccountStats(
         if (!opts.timeline) throw new Error("ยังไม่ได้ตั้ง METRICOOL_USER_ID / METRICOOL_API_TOKEN");
         const known = Object.keys(before).sort();
         const from = known.length ? (known[known.length - 1] < weekAgo ? known[known.length - 1] : weekAgo) : HISTORY_FROM;
-        add = await opts.timeline(a.blogId, a.platform, metric, from, today);
+        add = await opts.timeline(a.blogId, a.platform === "x" ? "twitter" : a.platform, metric, from, today);
         if (!add.length && !known.length) throw new Error("Metricool ไม่มีข้อมูล (เพจนี้อาจไม่ได้เชื่อม " + a.platform + " ใน Metricool)");
       } else if (a.source === "youtube") {
         if (ytError) throw new Error(ytError);

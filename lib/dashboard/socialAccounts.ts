@@ -50,12 +50,13 @@ export interface AccountStat {
   updatedAt?: string;
 }
 
-/** Metricool's account metric per network (v2/analytics/timelines, subject=account). */
+/** Metricool's account metric per network (v2/analytics/timelines, subject=account; X is "twitter" there). */
 export const METRICOOL_FOLLOWERS: Partial<Record<SocialPlatform, string>> = {
   facebook: "pageFollows",
   instagram: "followers",
   tiktok: "followers_count",
   youtube: "totalSubscribers",
+  x: "followers",
 };
 
 const isDay = (v: unknown) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
@@ -168,4 +169,9 @@ export const SEED_ACCOUNTS: SocialAccount[] = [
   { id: "kids-fb", name: "Kids Fun คิดฝัน", group: "Kids Fun คิดฝัน", platform: "facebook", source: "metricool", blogId: 6499994, enabled: false },
   { id: "kids-tiktok", name: "Kids Fun คิดฝัน", group: "Kids Fun คิดฝัน", platform: "tiktok", source: "metricool", blogId: 6499994, enabled: false },
   { id: "kids-yt", url: "https://www.youtube.com/channel/UCrMym6dFPiXrRfzTvgs5WnQ", name: "Kids Fun คิดฝัน", group: "Kids Fun คิดฝัน", platform: "youtube", source: "metricool", blogId: 6499994, enabled: false },
+  { id: "offscript-tiktok", name: "Off Script Off Record", group: "Off Script Off Record", platform: "tiktok", source: "metricool", blogId: 7916751, enabled: false },
+  { id: "offscript-fb", name: "Off Script Off Record", group: "Off Script Off Record", platform: "facebook", source: "metricool", blogId: 7916751, enabled: false },
+  { id: "offscript-ig", name: "Off Script Off Record", group: "Off Script Off Record", platform: "instagram", source: "metricool", blogId: 7916751, enabled: false },
+  { id: "offscript-yt", name: "Off Script Off Record", group: "Off Script Off Record", platform: "youtube", source: "metricool", blogId: 7916751, enabled: false },
+  { id: "offscript-x", name: "Off Script Off Record", group: "Off Script Off Record", platform: "x", source: "metricool", blogId: 7916751, enabled: false },
 ];
