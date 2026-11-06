@@ -1268,6 +1268,7 @@ export function useDashboard(enabled = true) {
         "Engagement",
         "Engagement Rate",
         "TV Rating Score",
+        "Video Link",
       ],
       body = filtered.map((r) => [
         r.date,
@@ -1281,6 +1282,7 @@ export function useDashboard(enabled = true) {
         r.engagement,
         r.engagementRate,
         r.ratingTotal,
+        /^https?:\/\//.test(r.url || "") ? r.url : "",
       ]);
     const esc = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
     const blob = new Blob(
