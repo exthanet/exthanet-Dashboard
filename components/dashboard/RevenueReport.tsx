@@ -541,50 +541,23 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
         <>
           {/* Revenue Forecasting & Accurate Projection Cards */}
           {forecast && (
-            <div
-              style={{
-                background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
-                borderRadius: 16,
-                padding: "20px 24px",
-                color: "#fff",
-                display: "grid",
-                gap: 16,
-                boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.3)",
-              }}
-            >
+            <div className="rev-forecast">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div
-                    style={{
-                      background: "rgba(59, 130, 246, 0.2)",
-                      padding: 8,
-                      borderRadius: 10,
-                      color: "#60a5fa",
-                      display: "flex",
-                    }}
-                  >
+                  <div className="rev-forecast-icon">
                     <Calculator size={22} />
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#f8fafc" }}>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#111827" }}>
                       Accurate Revenue Forecast & Year-End Projections ({forecast.currYear})
                     </h3>
-                    <p style={{ margin: 0, fontSize: 12, color: "#94a3b8" }}>
+                    <p style={{ margin: 0, fontSize: 12, color: "#6b7280" }}>
                       โมเดลคาดการณ์น้ำหนักผสม (3M Momentum + YTD Average + Trailing Run Rate)
                     </p>
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    fontSize: 12,
-                    background: "rgba(255, 255, 255, 0.08)",
-                    padding: "4px 12px",
-                    borderRadius: 999,
-                    color: "#cbd5e1",
-                    border: "1px solid rgba(255, 255, 255, 0.12)",
-                  }}
-                >
+                <div className="rev-forecast-pill">
                   บันทึกแล้ว {forecast.recordedMonthsCount}/12 เดือน (เหลืออีก {forecast.remainingMonthsThisYear} เดือน)
                 </div>
               </div>
@@ -595,89 +568,61 @@ export default function RevenueReport({ currentUser }: RevenueReportProps) {
                   gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                   gap: 16,
                   paddingTop: 8,
-                  borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                  borderTop: "1px solid #eef0f3",
                 }}
               >
                 {/* Metric 1: Latest Actual Month */}
-                <div
-                  style={{
-                    background: "rgba(255, 255, 255, 0.05)",
-                    padding: "14px 16px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#94a3b8", fontSize: 12 }}>
+                <div className="rev-forecast-tile">
+                  <div className="rev-forecast-label">
                     <Calendar size={14} />
                     <span>ยอดจริงเดือนล่าสุด ({forecast.latestMonthLabel})</span>
                   </div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: "#38bdf8", marginTop: 4 }}>
+                  <div className="rev-forecast-value">
                     {money(forecast.latestMonthRevenue)}
                   </div>
-                  <small style={{ color: "#64748b", fontSize: 11 }}>
+                  <small className="rev-forecast-note">
                     {forecast.latestFromApi ? `จาก API (ประมาณการ) · รอสรุปผล ${thMonth(forecast.latestMonth)}` : "ปิดยอดสมบูรณ์ตามรายงานจริง"}
                   </small>
                 </div>
 
                 {/* Metric 2: Next Month Forecast */}
-                <div
-                  style={{
-                    background: "rgba(59, 130, 246, 0.1)",
-                    padding: "14px 16px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(96, 165, 250, 0.3)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#93c5fd", fontSize: 12 }}>
+                <div className="rev-forecast-tile">
+                  <div className="rev-forecast-label">
                     <Sparkles size={14} />
                     <span>คาดการณ์เดือนถัดไป ({forecast.nextMonthLabel})</span>
                   </div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: "#60a5fa", marginTop: 4 }}>
+                  <div className="rev-forecast-value">
                     {money(forecast.nextMonthForecast)}
                   </div>
-                  <small style={{ color: "#93c5fd", fontSize: 11 }}>
+                  <small className="rev-forecast-note">
                     คาดการณ์ตามโมเมนตัม 3 เดือนเฉลี่ย ({moneyCompact(forecast.recent3Avg)}/mo)
                   </small>
                 </div>
 
                 {/* Metric 3: Full Year Forecast Total */}
-                <div
-                  style={{
-                    background: "rgba(16, 185, 129, 0.1)",
-                    padding: "14px 16px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(52, 211, 153, 0.3)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#6ee7b7", fontSize: 12 }}>
+                <div className="rev-forecast-tile">
+                  <div className="rev-forecast-label">
                     <Target size={14} />
                     <span>คาดการณ์ยอดรวมทั้งปี {forecast.currYear} (Full Year Projected)</span>
                   </div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: "#34d399", marginTop: 4 }}>
+                  <div className="rev-forecast-value">
                     {money(forecast.fullYearProjectedTotal)}
                   </div>
-                  <small style={{ color: "#a7f3d0", fontSize: 11 }}>
+                  <small className="rev-forecast-note">
                     สะสมจริง {moneyCompact(forecast.yearActualTotal)} + คาดการณ์อีก {forecast.remainingMonthsThisYear} เดือน {moneyCompact(forecast.projectedRemainingRevenue)}
                   </small>
                 </div>
 
                 {/* Metric 4: Annual Run Rate */}
-                <div
-                  style={{
-                    background: "rgba(255, 255, 255, 0.05)",
-                    padding: "14px 16px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#94a3b8", fontSize: 12 }}>
+                <div className="rev-forecast-tile">
+                  <div className="rev-forecast-label">
                     <TrendingUp size={14} />
                     <span>YTD Run-rate (อัตราเฉลี่ยรายปี)</span>
                   </div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: "#facc15", marginTop: 4 }}>
+                  <div className="rev-forecast-value">
                     {money(forecast.annualRunRate)}
                   </div>
-                  <small style={{ color: "#64748b", fontSize: 11 }}>
+                  <small className="rev-forecast-note">
                     อัตราเฉลี่ย {moneyCompact(forecast.yearActualTotal / forecast.recordedMonthsCount)}/เดือน
                   </small>
                 </div>

@@ -143,77 +143,118 @@ body {
   gap: 10px;
   margin: 4px 0 10px;
 }
+/* KPI cards: one quiet look everywhere — white, thin border, small grey icon beside the
+   label, big dark number, % change as coloured text. Colour is kept for meaning only
+   (platform / TV in the split bars). */
 .kpi-card {
-  min-height: 122px;
-  border: 1px solid #dfe6f0;
-  border-radius: 14px;
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  box-shadow: 0 5px 18px #16305b0a;
+  position: relative;
+  min-height: 118px;
+  border: 1px solid #e7e9ee;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: block;
+  background: #fff;
+  box-shadow: none;
+  color: #111827;
+  min-width: 0;
 }
-.kpi-card.blue {
-  background: linear-gradient(135deg, #eef4ff, #f6f9ff);
-}
-.kpi-card.green {
-  background: linear-gradient(135deg, #eafaf3, #f4fffa);
-}
-.kpi-card.violet {
-  background: linear-gradient(135deg, #f4edff, #faf7ff);
-}
-.kpi-card.orange {
-  background: linear-gradient(135deg, #fff2dd, #fff9ed);
-}
-.kpi-card.sky {
-  background: linear-gradient(135deg, #e8f3ff, #f5faff);
-}
-.kpi-card.indigo {
-  background: linear-gradient(135deg, #eef2ff, #f8faff);
-  border-color: #c7d2fe;
+.kpi-card.lead {
+  border-color: #111827;
 }
 .kpi-icon {
-  width: 48px;
-  height: 48px;
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  width: 16px;
+  height: 16px;
   display: grid;
   place-items: center;
-  border-radius: 11px;
-  background: #0757e8;
-  color: #fff;
-  box-shadow: 0 7px 15px #0757e840;
-  flex: none;
+  background: none;
+  color: #9ca3af;
+  box-shadow: none;
 }
-.green .kpi-icon {
-  background: #02a65a;
-}
-.violet .kpi-icon {
-  background: #7634e7;
-}
-.orange .kpi-icon {
-  background: #ff9f1c;
-}
-.sky .kpi-icon {
-  background: #1261dc;
-}
-.indigo .kpi-icon {
-  background: linear-gradient(135deg, #4f46e5, #3730a3);
-  box-shadow: 0 7px 15px rgba(79, 70, 229, 0.35);
+.kpi-icon svg {
+  width: 15px;
+  height: 15px;
 }
 .kpi-card p {
-  font-size: 13px;
-  font-weight: 800;
-  margin: 0 0 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 0 0 6px;
+  padding-left: 22px;
 }
 .kpi-card strong {
   display: block;
-  font-size: 25px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   line-height: 1.1;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
 }
 .kpi-card small {
   display: block;
-  color: #65738a;
-  margin-top: 7px;
-  line-height: 1.3;
+  color: #9ca3af;
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.kpi-note {
+  display: block;
+  margin-top: 4px;
+  color: #9ca3af;
+}
+.kpi-pair {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.kpi-pair > span {
+  display: flex;
+  flex-direction: column;
+}
+.kpi-card .kpi-pair small {
+  margin-top: 2px;
+  color: #6b7280;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.kpi-split {
+  display: block;
+}
+.kpi-split-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: #f1f2f5;
+  margin-top: 2px;
+}
+.kpi-split-bar i {
+  display: block;
+}
+.kpi-split-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin-top: 6px;
+  color: #6b7280;
+}
+.kpi-split-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.kpi-split-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.kpi-split-legend b {
+  color: #111827;
+  font-weight: 600;
 }
 .insight-strip {
   display: grid;
@@ -768,25 +809,23 @@ footer {
 .kpi-growth {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  border-radius: 999px;
-  padding: 2px 7px;
-  font-size: 11px;
-  font-weight: 800;
+  gap: 2px;
+  background: none;
+  border-radius: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
   line-height: 1.3;
   white-space: nowrap;
 }
 .kpi-growth.up {
-  background: #dcfce7;
-  color: #15803d;
+  color: #047857;
 }
 .kpi-growth.down {
-  background: #fee2e2;
   color: #b91c1c;
 }
 .kpi-growth.flat {
-  background: #f1f5f9;
-  color: #475569;
+  color: #6b7280;
 }
 .kpi-growth-label {
   font-weight: 600;
@@ -798,8 +837,7 @@ footer {
   font-size: 11px;
 }
 .kpi-compare-note .kpi-growth {
-  padding: 0 5px;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 /* ผลงานรายเทป: ทีวี + ออนไลน์ (compare table) */

@@ -98,7 +98,7 @@ export function EngagementReport({ cur, prev, compareText }: { cur: RecordRow[];
     <div className="eg-page">
       <div className="pt-kpis">
         {tiles.map((x) => (
-          <div key={x.label} className="pi-card pt-kpi" style={{ borderTop: `3px solid ${x.color}` }}>
+          <div key={x.label} className="pi-card pt-kpi" style={{ borderTop: `2px solid ${x.color}` }}>
             <small>{x.label}</small>
             <b>{x.now === null ? "-" : x.f(x.now)}</b>
             <Growth value={change(x.now, x.before)} title={compareText} label="เทียบเดือนก่อน" />

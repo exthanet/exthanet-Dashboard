@@ -479,8 +479,8 @@
 
 .quality-card {
   min-width: 0;
-  border: 1px solid #e2e8f4;
-  border-top: 4px solid #64748b;
+  border: 1px solid #e7e9ee;
+  border-top: 2px solid #64748b;
   border-radius: 11px;
   background: #fff;
   padding: 12px;
@@ -699,7 +699,8 @@
   flex-direction: column;
   padding: 4px 6px;
   border-radius: 7px;
-  background: #f6f8fc;
+  background: #fff;
+  border: 1px solid #eef0f3;
 }
 
 .thumb-metrics b {

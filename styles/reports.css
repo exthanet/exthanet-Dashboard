@@ -601,3 +601,51 @@
 .rev-month .rev-month-channel-list li > span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rev-month .rev-month-channel-list li strong { font-size: 13px; }
 .rev-month .rev-month-types .rev-month-sources li { grid-template-columns: 12px minmax(0, 1fr) 70px 90px 50px; }
+
+/* YouTube Revenue forecast: the same quiet cards as the KPI tiles */
+.rev-forecast {
+  background: #fff;
+  border: 1px solid #e7e9ee;
+  border-radius: 12px;
+  padding: 18px 20px;
+  color: #111827;
+  display: grid;
+  gap: 14px;
+}
+.rev-forecast-icon {
+  display: flex;
+  color: #9ca3af;
+}
+.rev-forecast-pill {
+  font-size: 12px;
+  color: #6b7280;
+  border: 1px solid #e7e9ee;
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+.rev-forecast-tile {
+  border: 1px solid #e7e9ee;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #fff;
+}
+.rev-forecast-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #6b7280;
+  font-size: 12px;
+}
+.rev-forecast-label svg { color: #9ca3af; }
+.rev-forecast-value {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #111827;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.rev-forecast-note {
+  color: #9ca3af;
+  font-size: 11px;
+}

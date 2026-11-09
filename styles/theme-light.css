@@ -20,16 +20,6 @@ html[data-theme="light"] .kpi-card.indigo {
   background: var(--tp-card);
   border-color: var(--tp-line);
 }
-html[data-theme="light"] .kpi-icon,
-html[data-theme="light"] .green .kpi-icon,
-html[data-theme="light"] .violet .kpi-icon,
-html[data-theme="light"] .orange .kpi-icon,
-html[data-theme="light"] .sky .kpi-icon,
-html[data-theme="light"] .indigo .kpi-icon {
-  background: var(--tp-accent-soft);
-  color: var(--tp-accent);
-  box-shadow: none;
-}
 html[data-theme="light"] body {
   background: var(--tp-bg);
   color: var(--tp-ink);
