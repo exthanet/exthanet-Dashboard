@@ -51,6 +51,8 @@ export interface AccountStat {
   chosen?: FollowerSource;
   /** Why the sources disagree, for a person to check (e.g. "Metricool 2,869 ต่างจาก API 113,000"). */
   check?: string;
+  /** The account the history belongs to (accountKey); a row turned into another account starts again. */
+  account?: string;
   error?: string;
   updatedAt?: string;
 }

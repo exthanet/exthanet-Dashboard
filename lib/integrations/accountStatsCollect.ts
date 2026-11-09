@@ -41,6 +41,9 @@ export async function youtubeSubscribers(apiKey: string, ids: string[], fetcher:
   return out;
 }
 
+/** What the stored history belongs to: the source, platform and brand / channel of the row. */
+export const accountKey = (a: SocialAccount) => [a.source, a.platform, a.blogId ?? "", a.channelId ?? ""].join("|");
+
 export interface AccountStatsResult {
   accounts: number;
   updated: number;
@@ -63,7 +66,7 @@ export async function collectAccountStats(
   const existing = new Map<string, AccountStat>();
   for (const d of await db.listRaw("accountStats")) {
     const x = decodeFields(d.fields || {}) as unknown as AccountStat;
-    existing.set(String(d.name).split("/").pop()!, { series: (x.series || {}) as Record<string, number>, ...(x.latest ? { latest: x.latest } : {}) });
+    existing.set(String(d.name).split("/").pop()!, { series: (x.series || {}) as Record<string, number>, ...(x.latest ? { latest: x.latest } : {}), ...(x.account ? { account: String(x.account) } : {}) });
   }
   // The platform's own API, where there is one: YouTube subscribers for every YouTube account
   // with a channel id (its own, or its Metricool brand's).
@@ -78,7 +81,11 @@ export async function collectAccountStats(
   const weekAgo = new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 86400000).toISOString().slice(0, 10);
 
   for (const a of accounts) {
-    const prev = existing.get(a.id);
+    // An admin may turn a row into another account (same id, other brand / platform):
+    // its history then starts again instead of mixing two accounts.
+    const account = accountKey(a);
+    const stored = existing.get(a.id);
+    const prev = stored && (!stored.account || stored.account === account) ? stored : undefined;
     let series = prev?.series || {};
     const errors: string[] = [];
     let mcAdd: [string, number][] = [];
@@ -119,6 +126,7 @@ export async function collectAccountStats(
       sources: { ...(api ? { api } : {}), ...(metricool ? { metricool } : {}) },
       ...(pick.chosen ? { chosen: pick.chosen } : {}),
       ...("check" in pick && pick.check ? { check: pick.check } : {}),
+      account,
     };
     // Errors only matter when nothing gave a number.
     const error = !stat.latest || (!api && !metricool && a.source !== "manual") ? errors.join(" · ") : "";

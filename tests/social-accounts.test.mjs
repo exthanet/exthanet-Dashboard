@@ -170,3 +170,15 @@ test("audience: YouTube age/gender from the CMS rows, Instagram from Metricool",
   assert.equal(yt.from, "2026-08-11");
   assert.deepEqual(decodeFields(db.store.get("audienceStats/hitz-ig").fields).gender, { female: 64.6, male: 17.7, other: 17.7 });
 });
+
+test("a row turned into another account starts its history again", async () => {
+  const db = fakeDb({
+    "socialAccounts/config": { accounts: [{ id: "tin-yt", name: "Kids Fun", platform: "tiktok", source: "metricool", blogId: 6499994, enabled: true }] },
+    "accountStats/tin-yt": { series: { "2026-08-01": 112000 }, latest: { date: "2026-08-01", value: 112000 }, account: "metricool|youtube|6499952|" },
+  });
+  const timeline = async () => [["2026-11-08", 2869]];
+  await collectAccountStats(db, "2026-11-09", { timeline });
+  const s = decodeFields(db.store.get("accountStats/tin-yt").fields);
+  assert.deepEqual(s.series, { "2026-11-08": 2869 });
+  assert.equal(s.account, "metricool|tiktok|6499994|");
+});
