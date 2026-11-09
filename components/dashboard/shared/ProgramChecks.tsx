@@ -23,8 +23,10 @@ export function ProgramChecks({ label, value, onChange, options }: { label: stri
   }, [open]);
 
   const toggle = (o: string) => {
-    // From ทั้งหมด, the first tick picks only that program.
-    const next = !list ? [o] : picked.includes(o) ? picked.filter((x) => x !== o) : [...picked, o];
+    // ทั้งหมด shows every box ticked: unticking one keeps all the others ("เฉพาะ" picks one alone).
+    // The last ticked box stays: an empty filter would mean nothing to show.
+    const next = picked.includes(o) ? picked.filter((x) => x !== o) : [...picked, o];
+    if (!next.length) return;
     onChange(programValue(next, options));
   };
 
@@ -43,7 +45,7 @@ export function ProgramChecks({ label, value, onChange, options }: { label: stri
           </label>
           {options.map((o) => (
             <label key={o}>
-              <input type="checkbox" checked={!!list && list.includes(o)} onChange={() => toggle(o)} />
+              <input type="checkbox" checked={picked.includes(o)} onChange={() => toggle(o)} />
               <span>{o}</span>
               <button
                 type="button"
