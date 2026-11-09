@@ -103,7 +103,7 @@ export function DashboardFilters({
         {programLocked ? (
           <SelectBox label="รายการทั้งหมด" value={program} onChange={setProgram} options={options.programs} locked="ทุกรายการ (หน้านี้แสดงทุกรายการ)" />
         ) : (
-          <ProgramChecks label="รายการทั้งหมด" value={program} onChange={setProgram} options={options.programs} />
+          <ProgramChecks label="รายการทั้งหมด" value={program} onChange={setProgram} options={options.programs} uncheckAll={DEFAULT_PROGRAM} />
         )}
         <div className="filter-box date-filter" role="group" aria-label="วันเดือนปี">
           <span>วันเดือนปี</span>

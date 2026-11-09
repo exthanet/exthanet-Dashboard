@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { PROGRAM_NONE, programLabel, programList, programValue } from "@/lib/dashboard/programFilter";
 
-export function ProgramChecks({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+/** `uncheckAll`: what unticking ทั้งหมด picks (the dashboard's default program); none when absent. */
+export function ProgramChecks({ label, value, onChange, options, uncheckAll }: { label: string; value: string; onChange: (v: string) => void; options: string[]; uncheckAll?: string }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const list = programList(value);
@@ -46,7 +47,7 @@ export function ProgramChecks({ label, value, onChange, options }: { label: stri
                 // Some picked: the ทั้งหมด box shows a dash.
                 if (el) el.indeterminate = !!list && list.length > 0;
               }}
-              onChange={() => onChange(list ? "ALL" : PROGRAM_NONE)}
+              onChange={() => onChange(list ? "ALL" : uncheckAll && options.includes(uncheckAll) ? uncheckAll : PROGRAM_NONE)}
             />
             ทั้งหมด
           </label>
