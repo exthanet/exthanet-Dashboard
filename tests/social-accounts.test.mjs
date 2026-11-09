@@ -106,3 +106,67 @@ test("logo and link: uploaded first, else the brand page's Facebook picture and 
   assert.equal(accountLogo(typed), "https://graph.facebook.com/thaiwaveclub/picture?width=200&height=200");
   assert.equal(accountLogo({ ...typed, url: "https://line.me/R/ti/p/@x" }), "");
 });
+
+test("which number to show: the API first, Metricool when the API is missing, zero, falling or stale; disagreement noted", async () => {
+  const { chooseFollowers, dropOutliers } = await import("../lib/dashboard/socialAccounts.ts");
+  const api = { date: "2026-11-09", value: 113000 };
+  const mcBad = { date: "2026-11-08", value: 2869 };
+  const r = chooseFollowers(api, mcBad, 112000);
+  assert.equal(r.chosen, "api");
+  assert.match(r.check, /Metricool 2,869 ต่างจาก API 113,000/);
+  assert.equal(chooseFollowers(undefined, { date: "2026-11-09", value: 500 }, 490).chosen, "metricool");
+  assert.equal(chooseFollowers({ date: "2026-11-09", value: 0 }, { date: "2026-11-09", value: 500 }, 490).chosen, "metricool");
+  // The API fell 30% overnight while Metricool did not: Metricool.
+  assert.equal(chooseFollowers({ date: "2026-11-09", value: 700 }, { date: "2026-11-09", value: 1000 }, 1000).chosen, "metricool");
+  // Within 2%: no note.
+  assert.equal(chooseFollowers({ date: "2026-11-09", value: 2170 }, { date: "2026-11-08", value: 2150 }, 2100).check, undefined);
+  // Recent points far from the trusted reading go; older history stays.
+  assert.deepEqual(dropOutliers({ "2026-08-01": 100000, "2026-11-07": 2869, "2026-11-08": 112000 }, api), { "2026-08-01": 100000, "2026-11-08": 112000 });
+});
+
+test("an account's posts: its brand's Channel on its platform, in the window", async () => {
+  const { accountPosts } = await import("../lib/dashboard/socialAccounts.ts");
+  const rows = [
+    { platform: "TikTok", channel: "TERO Digital", date: "2026-11-01", views: 1000, likes: 50, comments: 5, shares: 5 },
+    { platform: "TikTok", channel: "TERO Digital", date: "2026-09-01", views: 9999, likes: 0, comments: 0, shares: 0 },
+    { platform: "Facebook", channel: "TERO Digital", date: "2026-11-01", views: 7, likes: 0, comments: 0, shares: 0 },
+  ];
+  const a = { id: "t", name: "terodigital", platform: "tiktok", source: "metricool", blogId: 6487104, enabled: true };
+  assert.deepEqual(accountPosts(a, rows, "2026-10-10", "2026-11-08"), { posts: 1, views: 1000, likes: 50, comments: 5, shares: 5, er: 0.06 });
+  assert.equal(accountPosts({ ...a, blogId: 6500109 }, rows, "2026-10-10", "2026-11-08"), null);
+  assert.equal(accountPosts({ ...a, platform: "line" }, rows, "2026-10-10", "2026-11-08"), null);
+});
+
+test("the sync: YouTube by its brand's channel through the API wins over a wrong Metricool number", async () => {
+  const db = fakeDb({
+    "socialAccounts/config": { accounts: [{ id: "tin-yt", name: "ถกไม่เถียง", platform: "youtube", source: "metricool", blogId: 6499952, enabled: true }] },
+    "accountStats/tin-yt": { series: { "2026-11-01": 112000 }, latest: { date: "2026-11-01", value: 112000 } },
+  });
+  const timeline = async () => [["2026-11-08", 2869]];
+  const fetcher = async () => ({ ok: true, json: async () => ({ items: [{ id: "UCLZd__C13KacoUKip4I5cJw", statistics: { subscriberCount: "113000" } }] }) });
+  const r = await collectAccountStats(db, "2026-11-09", { timeline, youtubeKey: "k", fetcher });
+  const s = decodeFields(db.store.get("accountStats/tin-yt").fields);
+  assert.equal(s.chosen, "api");
+  assert.deepEqual(s.latest, { date: "2026-11-09", value: 113000 });
+  assert.equal(s.series["2026-11-08"], undefined);
+  assert.match(s.check, /2,869/);
+  assert.equal(r.problems.length, 1);
+});
+
+test("audience: YouTube age/gender from the CMS rows, Instagram from Metricool", async () => {
+  const { collectAudience } = await import("../lib/integrations/accountStatsCollect.ts");
+  const db = fakeDb({ "socialAccounts/config": { accounts: [
+    { id: "hitz-yt", name: "HITZ", platform: "youtube", source: "metricool", blogId: 6500128, enabled: true },
+    { id: "hitz-ig", name: "HITZ", platform: "instagram", source: "metricool", blogId: 6500128, enabled: true },
+    { id: "hitz-fb", name: "HITZ", platform: "facebook", source: "metricool", blogId: 6500128, enabled: true },
+  ] } });
+  const youtube = async (ch) => (ch === "UCNcZ9a94asv8TOP435PaCiA" ? [["age25-34", "female", 30], ["age25-34", "male", 17], ["age65-", "female", 53]] : []);
+  const distribution = async (blog, net, metric) => (metric === "gender" ? [{ key: "F", value: 64.6 }, { key: "M", value: 17.7 }, { key: "U", value: 17.7 }] : [{ key: "25-34", value: 34.1 }]);
+  const r = await collectAudience(db, "2026-11-09", { youtube, distribution });
+  assert.equal(r.written, 2);
+  const yt = decodeFields(db.store.get("audienceStats/hitz-yt").fields);
+  assert.deepEqual(yt.gender, { female: 83, male: 17 });
+  assert.deepEqual(yt.age, { "25-34": 47, "65+": 53 });
+  assert.equal(yt.from, "2026-08-11");
+  assert.deepEqual(decodeFields(db.store.get("audienceStats/hitz-ig").fields).gender, { female: 64.6, male: 17.7, other: 17.7 });
+});

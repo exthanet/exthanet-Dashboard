@@ -5,13 +5,14 @@
 // admin's typed number marked "รอตรวจสอบ". Click a card for a popup with its daily
 // followers and a link to the account; download the board as CSV.
 import { useEffect, useMemo, useState } from "react";
-import { Download, ExternalLink, Settings, X } from "lucide-react";
+import { Activity, ChartLine, Clock, Download, ExternalLink, Eye, Heart, MessageCircle, Pencil, PlugZap, Settings, Share2, TrendingDown, TrendingUp, TriangleAlert, Users, X } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import {
   PLATFORM_LABEL,
   SOCIAL_PLATFORMS,
   accountLogo,
+  accountPosts,
   accountUrl,
   boardTotal,
   currentFollowers,
@@ -19,12 +20,14 @@ import {
   groupOf,
   shortCount,
   type AccountStat,
+  type PostTotals,
   type SocialAccount,
   type SocialPlatform,
 } from "@/lib/dashboard/socialAccounts";
 import { loadAccountStats, loadSocialAccounts } from "@/lib/socialAccountsData";
 import { dateLabel } from "@/lib/dashboard/format";
 import { track } from "@/lib/loadingBar";
+import { MediaKit } from "@/components/dashboard/sections/MediaKit";
 
 export const PLATFORM_COLOR: Record<SocialPlatform, string> = {
   facebook: "#1877f2",
@@ -51,6 +54,57 @@ function Logo({ a }: { a: SocialAccount }) {
     <img src={src} alt="" className="followers-logo" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
   ) : (
     <span className="followers-logo text">{initials(a.name)}</span>
+  );
+}
+
+/** Where the number on a card comes from: the platform's API, Metricool, both disagreeing, or typed. */
+function SourceBadge({ a, stat }: { a: SocialAccount; stat?: AccountStat }) {
+  const src = sourceOf(a, stat);
+  const s = SOURCE_BADGE[src];
+  const detail = [stat?.sources?.api && `API ${full(stat.sources.api.value)} (${dayTh(stat.sources.api.date)})`, stat?.sources?.metricool && `Metricool ${full(stat.sources.metricool.value)} (${dayTh(stat.sources.metricool.date)})`, stat?.check]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <span className={`followers-src ${src}`} title={detail || s.title}>
+      <s.Icon size={11} aria-hidden="true" />
+      {s.label}
+    </span>
+  );
+}
+
+export function sourceOf(a: SocialAccount, stat?: AccountStat): keyof typeof SOURCE_BADGE {
+  if (a.source === "manual") return "manual";
+  if (stat?.check) return "check";
+  return stat?.chosen === "api" ? "api" : "metricool";
+}
+
+const SOURCE_BADGE = {
+  api: { label: "API", title: "ดึงตรงจากแพลตฟอร์ม", Icon: PlugZap },
+  metricool: { label: "Metricool", title: "จาก Metricool", Icon: ChartLine },
+  check: { label: "ตรวจสอบ", title: "ตัวเลขจาก 2 แหล่งต่างกันเกิน 2%", Icon: TriangleAlert },
+  manual: { label: PENDING, title: "ยังไม่ได้ต่อ API · ตัวเลขกรอกโดยผู้ดูแล", Icon: Pencil },
+} as const;
+
+/** The account's posts in the last 30 days: views, likes, comments, shares and ER, each with its icon. */
+function PostStats({ totals }: { totals: PostTotals | null }) {
+  if (!totals) return <span className="followers-stats-row none">ไม่มีข้อมูลโพสต์ (ไม่ได้ sync โพสต์ของบัญชีนี้)</span>;
+  const items = [
+    { Icon: Eye, label: "วิว", value: shortCount(totals.views) },
+    { Icon: Heart, label: "ไลก์", value: shortCount(totals.likes) },
+    { Icon: MessageCircle, label: "คอมเมนต์", value: shortCount(totals.comments) },
+    { Icon: Share2, label: "แชร์", value: shortCount(totals.shares) },
+    { Icon: Activity, label: "ER", value: totals.er === null ? "–" : `${(totals.er * 100).toFixed(1)}%` },
+  ];
+  return (
+    <span className="followers-stats-row" title={`${full(totals.posts)} โพสต์ใน 30 วันล่าสุด`}>
+      {items.map(({ Icon, label, value }) => (
+        <span key={label}>
+          <Icon size={14} aria-hidden="true" />
+          <b>{value}</b>
+          {label}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -133,6 +187,12 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
     return rows.filter((r) => r.platform !== "TV" && r.date > from && r.date <= last).reduce((a, r) => a + (r.views || 0), 0);
   }, [rows]);
 
+  const posts30 = useMemo(() => {
+    const last = rows.filter((r) => r.platform !== "TV").map((r) => r.date).sort().pop() || "";
+    const from = last ? new Date(Date.parse(`${last}T00:00:00Z`) - 29 * 86400000).toISOString().slice(0, 10) : "";
+    return new Map(shown.map((a) => [a.id, last ? accountPosts(a, rows, from, last) : null]));
+  }, [rows, shown]);
+
   const growth = (a: SocialAccount) => {
     const now = currentFollowers(a, stats[a.id]);
     if (!now || a.source === "manual") return null;
@@ -152,7 +212,7 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
       <div className="panel-head">
         <div>
           <h2>ผู้ติดตาม</h2>
-          <p>ผู้ติดตามของทุกบัญชี · ตัวเลขจาก Metricool / YouTube อัปเดตทุกวันพร้อม sync · “{PENDING}” = บัญชีที่ยังไม่ได้ต่อ API ตัวเลขกรอกโดยผู้ดูแล</p>
+          <p>ผู้ติดตามของทุกบัญชี · ใช้ตัวเลขจาก API ของแพลตฟอร์มก่อน เทียบกับ Metricool ทุกวัน · “{PENDING}” = บัญชีที่ยังไม่ได้ต่อ API ตัวเลขกรอกโดยผู้ดูแล</p>
         </div>
         <div className="ranking-controls">
           <div className="segmented">
@@ -168,7 +228,7 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
               <Settings size={14} /> ตั้งค่าบัญชี
             </button>
           )}
-          <button className="tv-add" onClick={() => downloadCsv(groups, view, stats, growth)} disabled={!shown.length}>
+          <button className="tv-add" onClick={() => downloadCsv(groups, view, stats, growth, posts30)} disabled={!shown.length}>
             <Download size={14} /> ดาวน์โหลด CSV
           </button>
         </div>
@@ -222,46 +282,66 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                       className={`followers-card ${picked === a.id ? "active" : ""}`}
                       onClick={() => setPicked(a.id)}
                       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setPicked(a.id))}
-                      title={problem || ""}
+                      title={problem || stats[a.id]?.check || ""}
                     >
+                      <SourceBadge a={a} stat={stats[a.id]} />
                       {accountUrl(a) && (
                         <a className="followers-open" href={accountUrl(a)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} aria-label={`เปิด ${a.name} บน ${PLATFORM_LABEL[a.platform]}`}>
                           <ExternalLink size={14} />
                         </a>
                       )}
-                      <Logo a={a} />
-                      <span className="followers-body">
-                        <span className="followers-num">{now ? full(now.value) : "–"}</span>
-                        <span className="followers-name">
-                          {view === "group" && (
-                            <span className="followers-pill" style={{ background: PLATFORM_COLOR[a.platform] }}>
-                              {PLATFORM_LABEL[a.platform]}
-                            </span>
-                          )}
-                          <span className="followers-title">{a.name}</span>
-                        </span>
-                        <span className="followers-meta">
-                          {a.source === "manual" ? (
-                            <span className="followers-manual" title={a.manualDate ? `กรอกเมื่อ ${dayTh(a.manualDate)}` : ""}>
-                              {PENDING}
-                            </span>
-                          ) : gr !== null ? (
-                            <span className={gr >= 0 ? "up" : "down"}>{`${gr >= 0 ? "+" : ""}${full(gr)} ใน 30 วัน`}</span>
-                          ) : problem ? (
-                            <span className="down">ดึงไม่ได้</span>
-                          ) : (
-                            <span>{now ? dayTh(now.date) : "รอ sync"}</span>
-                          )}
+                      <span className="followers-card-top">
+                        <Logo a={a} />
+                        <span className="followers-body">
+                          <span className="followers-num">
+                            <Users size={15} aria-hidden="true" />
+                            {now ? full(now.value) : "–"}
+                          </span>
+                          <span className="followers-name">
+                            {view === "group" && (
+                              <span className="followers-pill" style={{ background: PLATFORM_COLOR[a.platform] }}>
+                                {PLATFORM_LABEL[a.platform]}
+                              </span>
+                            )}
+                            <span className="followers-title">{a.name}</span>
+                          </span>
+                          <span className="followers-meta">
+                            {a.source === "manual" ? (
+                              <span className="followers-wait">
+                                <Clock size={12} aria-hidden="true" /> กรอกเมื่อ {dayTh(a.manualDate || "")}
+                              </span>
+                            ) : gr !== null ? (
+                              <span className={gr >= 0 ? "up" : "down"}>
+                                {gr >= 0 ? <TrendingUp size={12} aria-hidden="true" /> : <TrendingDown size={12} aria-hidden="true" />}
+                                {`${gr >= 0 ? "+" : ""}${full(gr)} ใน 30 วัน`}
+                              </span>
+                            ) : problem ? (
+                              <span className="down">ดึงไม่ได้</span>
+                            ) : (
+                              <span>{now ? dayTh(now.date) : "รอ sync"}</span>
+                            )}
+                          </span>
                         </span>
                       </span>
+                      <PostStats totals={posts30.get(a.id) ?? null} />
                     </div>
                   );
                 })}
               </div>
             </section>
           ))}
+          <p className="followers-legend">
+            <span><PlugZap size={12} /> API = ดึงตรงจากแพลตฟอร์ม</span>
+            <span><ChartLine size={12} /> Metricool</span>
+            <span><TriangleAlert size={12} /> ตรวจสอบ = 2 แหล่งต่างกันเกิน 2%</span>
+            <span><Pencil size={12} /> {PENDING} = กรอกเอง</span>
+            <span><ExternalLink size={12} /> เปิดบัญชี</span>
+            <span><Eye size={12} /> <Heart size={12} /> <MessageCircle size={12} /> <Share2 size={12} /> <Activity size={12} /> วิว · ไลก์ · คอมเมนต์ · แชร์ · ER ของโพสต์ 30 วันล่าสุด</span>
+          </p>
         </div>
       )}
+
+      {shown.length > 0 && <MediaKit accounts={shown} stats={stats} rows={rows} total={total} views12={views12} />}
 
       {pickedAccount && (
         <div className="modal-backdrop" onClick={() => setPicked("")}>
@@ -291,6 +371,25 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                   <b>{`${pickedGrowth >= 0 ? "+" : ""}${full(pickedGrowth)}`}</b>
                 </div>
               )}
+              {(() => {
+                const p = posts30.get(pickedAccount.id);
+                return p ? (
+                  <div>
+                    โพสต์ 30 วัน
+                    <b>{full(p.posts)}</b>
+                    วิว {shortCount(p.views)} · ER {p.er === null ? "–" : `${(p.er * 100).toFixed(1)}%`}
+                  </div>
+                ) : null;
+              })()}
+              {(stats[pickedAccount.id]?.sources?.api || stats[pickedAccount.id]?.sources?.metricool) && (
+                <div>
+                  แหล่งข้อมูล
+                  <b>{sourceOf(pickedAccount, stats[pickedAccount.id]) === "api" ? "API" : sourceOf(pickedAccount, stats[pickedAccount.id]) === "check" ? "ตรวจสอบ" : "Metricool"}</b>
+                  {stats[pickedAccount.id]?.sources?.api && `API ${full(stats[pickedAccount.id]!.sources!.api!.value)}`}
+                  {stats[pickedAccount.id]?.sources?.api && stats[pickedAccount.id]?.sources?.metricool && " · "}
+                  {stats[pickedAccount.id]?.sources?.metricool && `Metricool ${full(stats[pickedAccount.id]!.sources!.metricool!.value)}`}
+                </div>
+              )}
               {series.length > 1 && (
                 <div>
                   ข้อมูลย้อนหลัง
@@ -299,6 +398,7 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                 </div>
               )}
             </div>
+            {stats[pickedAccount.id]?.check && <p className="growth-notice warn">{stats[pickedAccount.id]!.check} · แสดงตัวเลขจาก{stats[pickedAccount.id]?.chosen === "api" ? " API" : " Metricool"}</p>}
             {series.length > 1 ? (
               <div className="chart-md">
                 <ResponsiveContainer>
@@ -333,14 +433,22 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
 }
 
 /** The board as CSV (Excel opens it with Thai intact), grouped as on screen. */
-function downloadCsv(groups: Group[], view: View, stats: Record<string, AccountStat>, growth: (a: SocialAccount) => number | null) {
-  const head = ["กลุ่ม", "รายการ", "แพลตฟอร์ม", "บัญชี", "ผู้ติดตาม", "ข้อมูลวันที่", "เพิ่มขึ้น 30 วัน", "ที่มา", "ลิงก์"];
+function downloadCsv(groups: Group[], view: View, stats: Record<string, AccountStat>, growth: (a: SocialAccount) => number | null, posts30: Map<string, PostTotals | null>) {
+  const head = ["กลุ่ม", "รายการ", "แพลตฟอร์ม", "บัญชี", "ผู้ติดตาม", "ข้อมูลวันที่", "เพิ่มขึ้น 30 วัน", "ที่มา", "ตัวเลข API", "ตัวเลข Metricool", "หมายเหตุ", "โพสต์ 30 วัน", "วิว 30 วัน", "ไลก์ 30 วัน", "คอมเมนต์ 30 วัน", "แชร์ 30 วัน", "ER 30 วัน", "ลิงก์"];
   const lines = groups.flatMap((g) =>
     g.accounts.map((a) => {
       const now = currentFollowers(a, stats[a.id]);
       const gr = growth(a);
-      const source = a.source === "manual" ? PENDING : a.source === "youtube" ? "YouTube API" : "Metricool";
-      return [g.label, groupOf(a), PLATFORM_LABEL[a.platform], a.name, now ? String(now.value) : "", now?.date || "", gr === null ? "" : String(gr), source, accountUrl(a)];
+      const st = stats[a.id];
+      const source = SOURCE_BADGE[sourceOf(a, st)].label;
+      const p = posts30.get(a.id);
+      const num = (v?: number) => (v === undefined ? "" : String(v));
+      return [
+        g.label, groupOf(a), PLATFORM_LABEL[a.platform], a.name, now ? String(now.value) : "", now?.date || "", gr === null ? "" : String(gr), source,
+        num(st?.sources?.api?.value), num(st?.sources?.metricool?.value), st?.check || "",
+        num(p?.posts), num(p?.views), num(p?.likes), num(p?.comments), num(p?.shares), p?.er == null ? "" : (p.er * 100).toFixed(2) + "%",
+        accountUrl(a),
+      ];
     }),
   );
   const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;

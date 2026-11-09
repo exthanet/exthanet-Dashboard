@@ -16,11 +16,29 @@ export async function loadAccountStats(): Promise<Record<string, AccountStat>> {
     out[d.id] = {
       series: (x.series || {}) as Record<string, number>,
       ...(x.latest ? { latest: { date: String(x.latest.date), value: Number(x.latest.value) } } : {}),
+      ...(x.sources ? { sources: x.sources } : {}),
+      ...(x.chosen ? { chosen: x.chosen } : {}),
+      ...(x.check ? { check: String(x.check) } : {}),
       ...(x.error ? { error: String(x.error) } : {}),
       ...(x.updatedAt ? { updatedAt: String(x.updatedAt) } : {}),
     };
   }
   return out;
+}
+
+export interface Audience {
+  platform: string;
+  gender: Record<string, number>;
+  age: Record<string, number>;
+  from: string;
+  to: string;
+  source: string;
+}
+
+/** audienceStats/{accountId}: who follows / watches each account (the sync writes it). */
+export async function loadAudience(): Promise<Record<string, Audience>> {
+  const snap = await getDocs(collection(db, "audienceStats"));
+  return Object.fromEntries(snap.docs.map((d) => [d.id, d.data() as Audience]));
 }
 
 export async function saveSocialAccounts(accounts: SocialAccount[], updatedBy: string): Promise<void> {

@@ -229,6 +229,11 @@ service cloud.firestore {
       allow read: if isActive();
       allow write: if false;
     }
+    // Media Kit: who follows / watches each account (the sync writes it).
+    match /audienceStats/{doc} {
+      allow read: if isActive();
+      allow write: if false;
+    }
     // Compact gzipped copy of masterData for opening the dashboard fast; written
     // by the sync (service account) or by an admin right after saving masterData.
     match /dashboardCache/{doc} {

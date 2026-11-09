@@ -6,7 +6,7 @@
 //
 // Relative imports only: the sync runs this file directly with Node.
 import { decodeFields, encodeFields, type Firestore } from "./firestoreRest.ts";
-import { METRICOOL_FOLLOWERS, mergeSeries, readAccounts, type AccountStat, type SocialAccount } from "../dashboard/socialAccounts.ts";
+import { BRAND_PAGES, METRICOOL_FOLLOWERS, chooseFollowers, dropOutliers, mergeSeries, readAccounts, type AccountStat, type Reading, type SocialAccount } from "../dashboard/socialAccounts.ts";
 
 export const HISTORY_FROM = "2025-01-01";
 
@@ -63,9 +63,12 @@ export async function collectAccountStats(
   const existing = new Map<string, AccountStat>();
   for (const d of await db.listRaw("accountStats")) {
     const x = decodeFields(d.fields || {}) as unknown as AccountStat;
-    existing.set(String(d.name).split("/").pop()!, { series: (x.series || {}) as Record<string, number> });
+    existing.set(String(d.name).split("/").pop()!, { series: (x.series || {}) as Record<string, number>, ...(x.latest ? { latest: x.latest } : {}) });
   }
-  const channels = accounts.filter((a) => a.source === "youtube" && a.channelId).map((a) => a.channelId!);
+  // The platform's own API, where there is one: YouTube subscribers for every YouTube account
+  // with a channel id (its own, or its Metricool brand's).
+  const channelOf = (a: SocialAccount) => (a.platform === "youtube" ? a.channelId || (a.blogId ? BRAND_PAGES[a.blogId]?.youtube : undefined) : undefined);
+  const channels = [...new Set(accounts.map(channelOf).filter((c): c is string => !!c))];
   let subs = new Map<string, number>();
   let ytError = "";
   if (channels.length) {
@@ -75,38 +78,141 @@ export async function collectAccountStats(
   const weekAgo = new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 86400000).toISOString().slice(0, 10);
 
   for (const a of accounts) {
-    const before = existing.get(a.id)?.series || {};
-    let add: [string, number][] = [];
-    let error = "";
-    try {
-      if (a.source === "metricool") {
-        const metric = METRICOOL_FOLLOWERS[a.platform];
-        if (!a.blogId || !metric) throw new Error("ไม่มี Metricool brand หรือแพลตฟอร์มนี้ไม่มีผู้ติดตามใน Metricool");
-        if (!opts.timeline) throw new Error("ยังไม่ได้ตั้ง METRICOOL_USER_ID / METRICOOL_API_TOKEN");
-        const known = Object.keys(before).sort();
-        const from = known.length ? (known[known.length - 1] < weekAgo ? known[known.length - 1] : weekAgo) : HISTORY_FROM;
-        add = await opts.timeline(a.blogId, a.platform === "x" ? "twitter" : a.platform, metric, from, today);
-        if (!add.length && !known.length) throw new Error("Metricool ไม่มีข้อมูล (เพจนี้อาจไม่ได้เชื่อม " + a.platform + " ใน Metricool)");
-      } else if (a.source === "youtube") {
-        if (ytError) throw new Error(ytError);
-        const v = subs.get(a.channelId || "");
-        if (v === undefined) throw new Error("ไม่พบช่อง หรือช่องซ่อนจำนวนผู้ติดตาม");
-        add = [[today, v]];
-      } else if (a.manualValue !== undefined && a.manualDate) {
-        add = [[a.manualDate, a.manualValue]];
+    const prev = existing.get(a.id);
+    let series = prev?.series || {};
+    const errors: string[] = [];
+    let mcAdd: [string, number][] = [];
+    let api: Reading | undefined;
+    if (a.source === "manual") {
+      if (a.manualValue !== undefined && a.manualDate) series = mergeSeries(series, [[a.manualDate, a.manualValue]]).series;
+    } else {
+      const channel = channelOf(a);
+      if (channel) {
+        if (ytError) errors.push(`YouTube API: ${ytError}`);
+        else if (subs.has(channel)) api = { date: today, value: subs.get(channel)! };
+        else errors.push("YouTube API: ไม่พบช่อง หรือช่องซ่อนจำนวนผู้ติดตาม");
       }
-    } catch (e) {
-      error = String((e as Error).message || e).slice(0, 160);
-      result.problems.push(`${a.name} (${a.platform}): ${error}`);
+      const metric = METRICOOL_FOLLOWERS[a.platform];
+      if (a.blogId && metric) {
+        if (!opts.timeline) errors.push("ยังไม่ได้ตั้ง METRICOOL_USER_ID / METRICOOL_API_TOKEN");
+        else {
+          const known = Object.keys(series).sort();
+          const from = known.length ? (known[known.length - 1] < weekAgo ? known[known.length - 1] : weekAgo) : HISTORY_FROM;
+          try {
+            mcAdd = await opts.timeline(a.blogId, a.platform === "x" ? "twitter" : a.platform, metric, from, today);
+            if (!mcAdd.length && !known.length && !api) errors.push(`Metricool ไม่มีข้อมูล (เพจนี้อาจไม่ได้เชื่อม ${a.platform} ใน Metricool)`);
+          } catch (e) {
+            errors.push(`Metricool: ${String((e as Error).message || e).slice(0, 120)}`);
+          }
+        }
+      } else if (a.source === "metricool") errors.push("ไม่มี Metricool brand หรือแพลตฟอร์มนี้ไม่มีผู้ติดตามใน Metricool");
     }
-    const stat = mergeSeries(before, add);
-    await db.set(
-      `accountStats/${a.id}`,
-      encodeFields({ ...stat, ...(error ? { error } : {}), updatedAt: new Date().toISOString() } as unknown as Record<string, unknown>),
-    );
+    const mcLast = [...mcAdd].sort((x, y) => x[0].localeCompare(y[0])).pop();
+    const metricool: Reading | undefined = mcLast ? { date: mcLast[0], value: mcLast[1] } : undefined;
+    const pick = a.source === "manual" ? { chosen: "manual" as const } : chooseFollowers(api, metricool, prev?.latest?.value);
+    // History from Metricool; the chosen reading wins its day, and when the API is chosen,
+    // recent Metricool points far from it (Metricool gone wrong) are left out.
+    series = mergeSeries(series, mcAdd).series;
+    if (pick.chosen === "api" && api) series = mergeSeries(dropOutliers(series, api), [[api.date, api.value]]).series;
+    const stat: AccountStat = {
+      ...mergeSeries(series, []),
+      sources: { ...(api ? { api } : {}), ...(metricool ? { metricool } : {}) },
+      ...(pick.chosen ? { chosen: pick.chosen } : {}),
+      ...("check" in pick && pick.check ? { check: pick.check } : {}),
+    };
+    // Errors only matter when nothing gave a number.
+    const error = !stat.latest || (!api && !metricool && a.source !== "manual") ? errors.join(" · ") : "";
+    if (error) result.problems.push(`${a.name} (${a.platform}): ${error}`);
+    if (stat.check) result.problems.push(`${a.name} (${a.platform}): ${stat.check}`);
+    await db.set(`accountStats/${a.id}`, encodeFields({ ...stat, ...(error ? { error } : {}), updatedAt: new Date().toISOString() } as unknown as Record<string, unknown>));
     result.updated++;
   }
   return result;
 }
 
 export type { SocialAccount };
+
+// ---------- audience (กลุ่มผู้ชม) ----------
+
+export interface AudienceStat {
+  platform: string;
+  /** Percent of viewers / followers. */
+  gender: Record<string, number>;
+  age: Record<string, number>;
+  from: string;
+  to: string;
+  source: string;
+}
+
+export interface Distribution {
+  (blogId: number, network: string, metric: string, from: string, to: string): Promise<{ key: string; value: number }[]>;
+}
+
+/** Metricool v2/analytics/distribution (Instagram followers by gender / age). */
+export function metricoolDistribution(userId: string, token: string, fetcher: typeof fetch = fetch): Distribution {
+  return async (blogId, network, metric, from, to) => {
+    const u = new URL("https://app.metricool.com/api/v2/analytics/distribution");
+    const params = { userId, blogId: String(blogId), from: `${from}T00:00:00`, to: `${to}T23:59:59`, timezone: "Asia/Bangkok", network, metric, subject: "account" };
+    for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+    const res = await fetcher(u, { headers: { "X-Mc-Auth": token, Accept: "application/json" }, signal: AbortSignal.timeout(60_000) });
+    if (!res.ok) throw new Error(`Metricool ${res.status}`);
+    const body = (await res.json()) as { data?: { key?: string; value?: number }[] };
+    return (body.data || []).filter((d) => d.key && Number.isFinite(d.value)).map((d) => ({ key: String(d.key), value: Number(d.value) }));
+  };
+}
+
+const GENDER: Record<string, string> = { M: "male", F: "female", U: "other", male: "male", female: "female", genderUserSpecified: "other" };
+
+/**
+ * Who follows / watches each account, for the Media Kit: YouTube viewers by age and gender
+ * over 90 days through the CMS (the platform's own numbers), Instagram followers through
+ * Metricool. Facebook gives none (Meta closed it) and TikTok only for Business accounts.
+ * One document per account in audienceStats/{id}; a failure is noted, never fatal.
+ */
+export async function collectAudience(
+  db: Firestore,
+  today: string,
+  opts: { distribution?: Distribution; youtube?: (channelId: string, from: string, to: string) => Promise<(string | number)[][]> },
+): Promise<{ written: number; problems: string[] }> {
+  const cfg = await db.get("socialAccounts/config");
+  const accounts = readAccounts(cfg ? decodeFields(cfg.fields || {}) : null);
+  const from = new Date(Date.parse(`${today}T00:00:00Z`) - 90 * 86400000).toISOString().slice(0, 10);
+  const out = { written: 0, problems: [] as string[] };
+  for (const a of accounts) {
+    try {
+      let stat: AudienceStat | null = null;
+      if (a.platform === "youtube" && opts.youtube) {
+        const channel = a.channelId || (a.blogId ? BRAND_PAGES[a.blogId]?.youtube : undefined);
+        if (!channel) continue;
+        const rows = await opts.youtube(channel, from, today);
+        if (!rows.length) continue;
+        const gender: Record<string, number> = {};
+        const age: Record<string, number> = {};
+        for (const [ageGroup, g, pct] of rows) {
+          const gk = GENDER[String(g)] || "other";
+          const ak = String(ageGroup).replace(/^age/, "").replace(/-$/, "+");
+          gender[gk] = (gender[gk] || 0) + Number(pct);
+          age[ak] = (age[ak] || 0) + Number(pct);
+        }
+        stat = { platform: "youtube", gender, age, from, to: today, source: "YouTube Analytics (CMS)" };
+      } else if (a.platform === "instagram" && a.blogId && opts.distribution) {
+        const [g, ag] = await Promise.all([opts.distribution(a.blogId, "instagram", "gender", from, today), opts.distribution(a.blogId, "instagram", "age", from, today)]);
+        if (!g.length && !ag.length) continue;
+        stat = {
+          platform: "instagram",
+          gender: Object.fromEntries(g.map((d) => [GENDER[d.key] || "other", d.value])),
+          age: Object.fromEntries(ag.map((d) => [d.key, d.value])),
+          from,
+          to: today,
+          source: "Metricool (Instagram)",
+        };
+      }
+      if (!stat) continue;
+      await db.set(`audienceStats/${a.id}`, encodeFields({ ...stat, updatedAt: new Date().toISOString() } as unknown as Record<string, unknown>));
+      out.written++;
+    } catch (e) {
+      out.problems.push(`${a.name} (${a.platform}): ${String((e as Error).message || e).slice(0, 120)}`);
+    }
+  }
+  return out;
+}

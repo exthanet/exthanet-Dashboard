@@ -46,8 +46,54 @@ export interface AccountStat {
   /** Daily followers, "YYYY-MM-DD" → count. */
   series: Record<string, number>;
   latest?: { date: string; value: number };
+  /** Each source's newest reading; `chosen` is the one the board shows. */
+  sources?: Partial<Record<FollowerSource, { date: string; value: number }>>;
+  chosen?: FollowerSource;
+  /** Why the sources disagree, for a person to check (e.g. "Metricool 2,869 ต่างจาก API 113,000"). */
+  check?: string;
   error?: string;
   updatedAt?: string;
+}
+
+export type FollowerSource = "api" | "metricool" | "manual";
+
+export interface Reading {
+  date: string;
+  value: number;
+}
+
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+
+/**
+ * Which reading the board shows. The platform's own API first; Metricool when the API gave
+ * nothing, gave 0, fell more than 20% below the last shown number, or is 2+ days older
+ * than Metricool. When both are recent and differ by more than 2%, say so.
+ */
+export function chooseFollowers(api: Reading | undefined, metricool: Reading | undefined, previous: number | undefined): { chosen?: FollowerSource; reading?: Reading; check?: string } {
+  const sane = (r?: Reading) => !!r && r.value > 0 && !(previous && r.value < previous * 0.8);
+  let chosen: FollowerSource | undefined;
+  if (sane(api) && !(metricool && sane(metricool) && daysBetween(api!.date, metricool.date) >= 2)) chosen = "api";
+  else if (sane(metricool)) chosen = "metricool";
+  else if (api && api.value > 0) chosen = "api";
+  else if (metricool && metricool.value > 0) chosen = "metricool";
+  const reading = chosen === "api" ? api : chosen === "metricool" ? metricool : undefined;
+  let check: string | undefined;
+  if (api && metricool && api.value > 0 && Math.abs(daysBetween(api.date, metricool.date)) <= 2) {
+    const diff = Math.abs(metricool.value - api.value) / api.value;
+    if (diff > 0.02) check = `Metricool ${metricool.value.toLocaleString("en-US")} ต่างจาก API ${api.value.toLocaleString("en-US")} (${Math.round(diff * 100)}%)`;
+  }
+  return { chosen, reading, check };
+}
+
+/** Drop recent points far from a trusted reading (a source that went wrong for a few days). */
+export function dropOutliers(series: Record<string, number>, trusted: Reading, days = 30, tolerance = 0.2): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [d, v] of Object.entries(series)) {
+    const recent = daysBetween(d, trusted.date) <= days && daysBetween(d, trusted.date) >= 0;
+    if (recent && Math.abs(v - trusted.value) / trusted.value > tolerance) continue;
+    out[d] = v;
+  }
+  return out;
 }
 
 /** Metricool's account metric per network (v2/analytics/timelines, subject=account; X is "twitter" there). */
@@ -136,6 +182,50 @@ export const BRAND_PAGES: Record<number, { facebook?: string; instagram?: string
   6500128: { facebook: "96473393997", instagram: "hitz.th", tiktok: "hitzthailand", youtube: "UCNcZ9a94asv8TOP435PaCiA" },
   7916751: { facebook: "1277806728756997", instagram: "offscript.offrecord", tiktok: "offscript.offrecord", youtube: "UCz-Lx4K3bFPeQzc8GT3tvuw", x: "offscriptoffrec" },
 };
+
+/** The brand's name in masterData's Channel column (config/metricool-brands.json labels), for its posts. */
+export const BRAND_CHANNEL: Record<number, string> = {
+  6487104: "TERO Digital",
+  6499952: "ถกไม่เถียง",
+  6499961: "เงินทองของจริง",
+  6499969: "TERO News",
+  6499994: "Kids Fun คิดฝัน",
+  6500128: "HITZ Thailand",
+  7916751: "Off Script Off Record",
+};
+
+/** masterData Program → the board's รายการ group, where the names differ. */
+export const PROGRAM_GROUP: Record<string, string> = { Hitzradio: "HITZ Thailand", Kidsfun: "Kids Fun คิดฝัน" };
+
+export interface PostTotals {
+  posts: number;
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  /** (likes + comments + shares) ÷ views, 0–1; null without views. */
+  er: number | null;
+}
+
+type PostRow = { platform: string; channel: string; date: string; views: number; likes: number; comments: number; shares: number };
+const POST_PLATFORM: Partial<Record<SocialPlatform, string>> = { facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" };
+
+/** The account's posts from `from` to `to` in masterData (its brand's Channel on its platform); null when its posts are not synced. */
+export function accountPosts(a: SocialAccount, rows: PostRow[], from: string, to: string): PostTotals | null {
+  const channel = a.blogId ? BRAND_CHANNEL[a.blogId] : undefined;
+  const platform = POST_PLATFORM[a.platform];
+  if (!channel || !platform) return null;
+  const t = { posts: 0, views: 0, likes: 0, comments: 0, shares: 0 };
+  for (const r of rows) {
+    if (r.platform !== platform || r.channel !== channel || r.date < from || r.date > to) continue;
+    t.posts++;
+    t.views += r.views || 0;
+    t.likes += r.likes || 0;
+    t.comments += r.comments || 0;
+    t.shares += r.shares || 0;
+  }
+  return { ...t, er: t.views ? (t.likes + t.comments + t.shares) / t.views : null };
+}
 
 const PAGE_URL: Partial<Record<SocialPlatform, (id: string) => string>> = {
   facebook: (id) => `https://www.facebook.com/${id}`,

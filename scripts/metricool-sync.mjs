@@ -44,7 +44,7 @@ import { channelUploads, collectAccMonth, writeAccMonth } from "../lib/integrati
 import { collectRevenueMonth, listCmsChannels, writeRevenueApiMonth } from "../lib/integrations/revenueApiCollect.ts";
 import { ACC_CHANNELS, programVideoIds } from "../lib/dashboard/accMonthly.ts";
 import { applySplitChanges, planProgramSplits, readSplitMoved, readSplits, splitParents } from "../lib/dashboard/programSplits.ts";
-import { accessTokenFor, analyticsProblem, applyVideoStats, loadCmsAccount } from "../lib/integrations/youtubeAnalytics.ts";
+import { accessTokenFor, analyticsProblem, analyticsQuery, applyVideoStats, loadCmsAccount } from "../lib/integrations/youtubeAnalytics.ts";
 import { collectYtAnalytics, writeYtAnalytics } from "../lib/integrations/ytAnalyticsCollect.ts";
 import { postId } from "../lib/dashboard/postKey.ts";
 import { collectComments } from "../lib/integrations/commentsCollect.ts";
@@ -66,7 +66,7 @@ import { thumbOf, writeThumbnails } from "../lib/integrations/thumbnailWriter.ts
 import { apiCoversAccount, compareSources, listVideos, loadAccounts, mapTikTokVideo, refreshAccessToken, saveAccount } from "../lib/integrations/tiktokApi.ts";
 import { mergeTvEpisodes, parseTvSheet } from "../lib/integrations/tvSheet.ts";
 import { nameEpisodes } from "../lib/integrations/tvEpisodeNames.ts";
-import { collectAccountStats, metricoolTimeline } from "../lib/integrations/accountStatsCollect.ts";
+import { collectAccountStats, collectAudience, metricoolDistribution, metricoolTimeline } from "../lib/integrations/accountStatsCollect.ts";
 import { downloadAnonymousLink, downloadSharedFile, graphCredentials, graphToken, sharedFileModified } from "../lib/integrations/sharepoint.ts";
 import { buildEmail, cleanRecipients, integrationProblems, sendEmail, shouldNotify } from "../lib/integrations/notify.ts";
 import { excelDate, isPlainDay } from "../lib/dashboard/normalize.ts";
@@ -655,6 +655,23 @@ try {
   } catch (e) {
     console.error(`followers not collected: ${e.message}`);
     integrations["ผู้ติดตาม"] = { ok: false, detail: "ไม่ได้ดึง", error: String(e.message).slice(0, 160) };
+  }
+  // Media Kit audience: YouTube viewers through the CMS, Instagram followers through Metricool; never fails the run.
+  try {
+    const mc = process.env.METRICOOL_USER_ID && process.env.METRICOOL_API_TOKEN;
+    let youtubeAudience;
+    if (ytCms) {
+      const token = await accessTokenFor(ytCms.refreshToken, process.env.YT_OAUTH_CLIENT_ID, process.env.YT_OAUTH_CLIENT_SECRET);
+      youtubeAudience = async (channel, from, to) =>
+        (await analyticsQuery(token, ytCms.ownerId, { startDate: from, endDate: to, filters: `channel==${channel}`, dimensions: "ageGroup,gender", metrics: "viewerPercentage" })).rows;
+    }
+    const au = await collectAudience(fsdb, today, {
+      distribution: mc ? metricoolDistribution(process.env.METRICOOL_USER_ID, process.env.METRICOOL_API_TOKEN) : undefined,
+      youtube: youtubeAudience,
+    });
+    console.log(`audience: ${au.written} accounts${au.problems.length ? ` · ${au.problems.join(" | ")}` : ""}`);
+  } catch (e) {
+    console.error(`audience not collected: ${e.message}`);
   }
   mark("ผู้ติดตาม");
   // Comments for วิเคราะห์คลิป (lib/integrations/commentsCollect.ts); never fails the run.
