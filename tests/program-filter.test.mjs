@@ -13,8 +13,11 @@ test("one, several or every program", () => {
   assert.equal(programMatches("ถกไม่เถียง|Kidsfun", "เงินทองของจริง"), false);
 });
 
-test("none or all picked is ALL; order follows the options", () => {
-  assert.equal(programValue([], options), "ALL");
+test("all picked is ALL, none is NONE; order follows the options", () => {
+  assert.equal(programValue([], options), "NONE");
+  assert.deepEqual(programList("NONE"), []);
+  assert.equal(programMatches("NONE", "ถกไม่เถียง"), false);
+  assert.equal(programLabel("NONE"), "ยังไม่ได้เลือก");
   assert.equal(programValue([...options], options), "ALL");
   assert.equal(programValue(["Kidsfun", "ถกไม่เถียง"], options), "ถกไม่เถียง|Kidsfun");
   assert.equal(programLabel("ALL"), "ทั้งหมด");

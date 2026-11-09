@@ -2,7 +2,7 @@
 // The รายการ filter as checkboxes: tick one or several programs, or ทั้งหมด.
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { programLabel, programList, programValue } from "@/lib/dashboard/programFilter";
+import { PROGRAM_NONE, programLabel, programList, programValue } from "@/lib/dashboard/programFilter";
 
 export function ProgramChecks({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
   const [open, setOpen] = useState(false);
@@ -23,10 +23,9 @@ export function ProgramChecks({ label, value, onChange, options }: { label: stri
   }, [open]);
 
   const toggle = (o: string) => {
-    // ทั้งหมด shows every box ticked: unticking one keeps all the others ("เฉพาะ" picks one alone).
-    // The last ticked box stays: an empty filter would mean nothing to show.
+    // ทั้งหมด shows every box ticked: unticking one keeps all the others ("เฉพาะ" picks one alone);
+    // unticking the last one leaves none picked.
     const next = picked.includes(o) ? picked.filter((x) => x !== o) : [...picked, o];
-    if (!next.length) return;
     onChange(programValue(next, options));
   };
 
@@ -40,7 +39,15 @@ export function ProgramChecks({ label, value, onChange, options }: { label: stri
       {open && (
         <div className="program-checks-menu" role="listbox" aria-multiselectable="true" aria-label={label}>
           <label className="program-checks-all">
-            <input type="checkbox" checked={!list} onChange={() => onChange("ALL")} />
+            <input
+              type="checkbox"
+              checked={!list}
+              ref={(el) => {
+                // Some picked: the ทั้งหมด box shows a dash.
+                if (el) el.indeterminate = !!list && list.length > 0;
+              }}
+              onChange={() => onChange(list ? "ALL" : PROGRAM_NONE)}
+            />
             ทั้งหมด
           </label>
           {options.map((o) => (

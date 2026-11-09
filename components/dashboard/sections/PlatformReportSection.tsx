@@ -76,7 +76,7 @@ export function PlatformReportSection({ rows, allRows, startDate, endDate, compa
             return (
               <div key={p} className="pr-block">
                 <h2 className="pr-sec">
-                  {p} {p === "YouTube" && canDeepDive && <small>เวลาในการรับชม / ผู้ติดตาม เห็นเฉพาะสิทธิ์ YouTube Deep Dive</small>}
+                  {p}
                 </h2>
                 {c.length ? (
                   <PlatformStudio

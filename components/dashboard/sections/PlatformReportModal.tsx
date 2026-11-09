@@ -66,7 +66,6 @@ export function PlatformReportModal({
             <h2>{shown === "TV" ? "TV Rating" : shown}</h2>
             <p className="growth-sub">
               {thDate(startDate)} – {thDate(endDate)} · ตามตัวกรองด้านบน{compareText ? ` · % ${compareText}` : ""}
-              {shown === "YouTube" && canDeepDive ? " · เวลาในการรับชม / ผู้ติดตาม เห็นเฉพาะสิทธิ์ YouTube Deep Dive" : ""}
             </p>
           </div>
           <div className="segmented">
