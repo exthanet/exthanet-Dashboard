@@ -38,6 +38,7 @@ import { SyncStatusModal } from "@/components/dashboard/sections/SyncStatusModal
 import { TvSourcesModal } from "@/components/dashboard/sections/TvSourcesModal";
 import { ProgramSplitsModal } from "@/components/dashboard/sections/ProgramSplitsModal";
 import { FollowersSection } from "@/components/dashboard/sections/FollowersSection";
+import { PlatformReportModal } from "@/components/dashboard/sections/PlatformReportModal";
 import { SocialAccountsModal } from "@/components/dashboard/sections/SocialAccountsModal";
 import { TvUploadModal } from "@/components/dashboard/sections/TvUploadModal";
 import { NotificationsModal } from "@/components/dashboard/sections/NotificationsModal";
@@ -74,6 +75,7 @@ export default function Dashboard() {
   const [tvSourcesOpen, setTvSourcesOpen] = useState(false);
   const [programSplitsOpen, setProgramSplitsOpen] = useState(false);
   const [socialAccountsOpen, setSocialAccountsOpen] = useState(false);
+  const [platformReport, setPlatformReport] = useState<string | null>(null);
   const [tvUploadOpen, setTvUploadOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   // undefined = not loaded; null = no sync has run yet.
@@ -391,6 +393,7 @@ export default function Dashboard() {
               programPie={model.programPie}
               platformPie={model.platformPie}
               vdoTypePie={model.vdoTypePie}
+              onOpenPlatform={setPlatformReport}
             />
             <ExecutiveAnalysis
               tvMode={model.tvMode}
@@ -507,6 +510,17 @@ export default function Dashboard() {
         onClose={() => setTvSourcesOpen(false)}
         status={syncStatus ?? null}
         userEmail={auth.user?.email || ""}
+      />
+      <PlatformReportModal
+        platform={platformReport}
+        onClose={() => setPlatformReport(null)}
+        rows={model.platformReportRows}
+        allRows={model.rows}
+        startDate={model.startDate}
+        endDate={model.endDate}
+        comparePeriod={model.comparePeriod}
+        latestDate={model.dataLatestDate}
+        canDeepDive={perms.deepDive}
       />
       <SocialAccountsModal open={socialAccountsOpen && isAdmin} onClose={() => setSocialAccountsOpen(false)} userEmail={auth.user?.email || ""} />
       <ProgramSplitsModal

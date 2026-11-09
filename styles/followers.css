@@ -445,3 +445,31 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* One platform's report over the overview */
+.source-modal.platform-modal {
+  width: min(1240px, 96vw);
+  max-width: 96vw;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.platform-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 36px 14px 0;
+}
+.platform-modal-head h2 { margin: 0; }
+.platform-modal-head .segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.platform-modal-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}

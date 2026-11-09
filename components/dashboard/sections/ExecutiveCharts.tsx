@@ -165,19 +165,32 @@ function TrendChart({
 }
 
 /** Totals of the periods in the chart, per series, with each stacked series' share. */
-function SeriesTotals({ data, series }: { data: Record<string, number | string>[]; series: Series[] }) {
+/** Totals under a chart; with onPick each total is a button (Cross Platform opens that platform's report). */
+function SeriesTotals({ data, series, onPick }: { data: Record<string, number | string>[]; series: Series[]; onPick?: (key: string) => void }) {
   const totals = series.map((s) => ({ ...s, total: data.reduce((a, row) => a + (Number(row[s.key]) || 0), 0) }));
   const stackedSum = totals.filter((t) => t.stack).reduce((a, t) => a + t.total, 0);
   if (!data.length) return null;
   return (
     <div className="series-totals">
-      {totals.map((t) => (
-        <div key={t.key} style={{ borderColor: t.color }}>
-          <small>{t.key}</small>
-          <b>{compact(t.total)}</b>
-          {t.stack && stackedSum > 0 && <span>{((t.total / stackedSum) * 100).toFixed(0)}%</span>}
-        </div>
-      ))}
+      {totals.map((t) => {
+        const body = (
+          <>
+            <small>{t.key}</small>
+            <b>{compact(t.total)}</b>
+            {t.stack && stackedSum > 0 && <span>{((t.total / stackedSum) * 100).toFixed(0)}%</span>}
+          </>
+        );
+        return onPick ? (
+          <button key={t.key} type="button" className="series-total-pick" style={{ borderColor: t.color }} onClick={() => onPick(t.key)} title={`ดูรายงาน ${t.key}`}>
+            {body}
+            <em>ดูรายงาน ›</em>
+          </button>
+        ) : (
+          <div key={t.key} style={{ borderColor: t.color }}>
+            {body}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -193,7 +206,8 @@ export function ExecutiveCharts({
   programPie,
   platformPie,
   vdoTypePie,
-}: Pick<
+  onOpenPlatform,
+}: { onOpenPlatform?: (platform: string) => void } & Pick<
   DashboardModel,
   | "executiveChartType"
   | "setExecutiveChartType"
@@ -235,7 +249,7 @@ export function ExecutiveCharts({
           <div>
             <h2>Cross Platform</h2>
             <p>
-              แยกแต่ละแพลตฟอร์มเทียบผู้ชมทีวี · {grainText} · ผู้ชมทีวีนับเป็นจำนวนคน (เส้นประ) · คลิกชื่อเพื่อซ่อน/แสดง{pctNote}
+              แยกแต่ละแพลตฟอร์มเทียบผู้ชมทีวี · {grainText} · ผู้ชมทีวีนับเป็นจำนวนคน (เส้นประ) · คลิกชื่อเพื่อซ่อน/แสดง · กดตัวเลขด้านล่างเพื่อดูรายงานแพลตฟอร์ม{pctNote}
             </p>
           </div>
           {toggle}
@@ -243,7 +257,7 @@ export function ExecutiveCharts({
         <div className="chart-lg">
           <TrendChart data={digitalVsTv} series={platformSeries} type={executiveChartType} grain={executiveGrain} />
         </div>
-        <SeriesTotals data={digitalVsTv} series={platformSeries} />
+        <SeriesTotals data={digitalVsTv} series={platformSeries} onPick={onOpenPlatform && ((k) => onOpenPlatform(k === TV_KEY ? "TV" : k))} />
       </article>
       {/* Phones skip the pies: each repeats a panel further down */}
       <div className="mobile-hide executive-side">

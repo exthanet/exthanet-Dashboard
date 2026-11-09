@@ -562,3 +562,36 @@
   color: #6a7892;
   font-size: 12px;
 }
+/* Cross Platform totals that open the platform's report */
+.series-totals .series-total-pick {
+  border: 0;
+  border-left: 4px solid;
+  background: transparent;
+  padding: 4px 10px;
+  min-width: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 0 8px 8px 0;
+  transition: background 0.15s;
+}
+.series-totals .series-total-pick:hover,
+.series-totals .series-total-pick:focus-visible {
+  background: #f1f5fb;
+}
+.series-totals .series-total-pick em {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: #0757e8;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.series-totals .series-total-pick:hover em,
+.series-totals .series-total-pick:focus-visible em {
+  opacity: 1;
+}
+@media (hover: none) {
+  .series-totals .series-total-pick em { opacity: 1; }
+}
