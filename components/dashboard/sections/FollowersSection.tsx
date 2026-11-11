@@ -196,7 +196,6 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
     const from = lastPostDay ? new Date(Date.parse(`${lastPostDay}T00:00:00Z`) - 364 * 86400000).toISOString().slice(0, 10) : "";
     return new Map(shown.map((a) => [a.id, lastPostDay ? accountPosts(a, rows, from, lastPostDay) : null]));
   }, [rows, shown, lastPostDay]);
-  const [tab, setTab] = useState<"chart" | "years">("chart");
 
   const growth = (a: SocialAccount) => {
     const now = currentFollowers(a, stats[a.id]);
@@ -289,8 +288,8 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                       role="button"
                       tabIndex={0}
                       className={`followers-card ${picked === a.id ? "active" : ""}`}
-                      onClick={() => (setTab("chart"), setPicked(a.id))}
-                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), (setTab("chart"), setPicked(a.id)))}
+                      onClick={() => setPicked(a.id)}
+                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setPicked(a.id))}
                       title={problem || stats[a.id]?.check || ""}
                     >
                       <SourceBadge a={a} stat={stats[a.id]} />
@@ -408,17 +407,8 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
               )}
             </div>
             {stats[pickedAccount.id]?.check && <p className="growth-notice warn">{stats[pickedAccount.id]!.check} · แสดงตัวเลขจาก{stats[pickedAccount.id]?.chosen === "api" ? " API" : " Metricool"}</p>}
-            <div className="segmented followers-tabs">
-              <button className={tab === "chart" ? "active" : ""} onClick={() => setTab("chart")}>
-                กราฟผู้ติดตาม
-              </button>
-              <button className={tab === "years" ? "active" : ""} onClick={() => setTab("years")}>
-                เทียบรายปี
-              </button>
-            </div>
-            {tab === "years" ? (
-              <YearTable years={pickedYears} hasPosts={posts12.get(pickedAccount.id) !== null} />
-            ) : series.length > 1 ? (
+            <h3 className="followers-popup-title">ผู้ติดตามรายวัน</h3>
+            {series.length > 1 ? (
               <div className="chart-md">
                 <ResponsiveContainer>
                   <LineChart data={series}>
@@ -435,6 +425,8 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                 {pickedAccount.source === "manual" ? `${PENDING}: ยังไม่ได้ต่อ API · ตัวเลขกรอกเมื่อ ${dayTh(pickedAccount.manualDate || "")}` : "ยังมีข้อมูลไม่พอทำกราฟ"}
               </p>
             )}
+            <h3 className="followers-popup-title">เทียบรายปี</h3>
+            <YearTable years={pickedYears} hasPosts={posts12.get(pickedAccount.id) !== null} />
             <div className="tv-actions">
               {accountUrl(pickedAccount) ? (
                 <a className="followers-link" href={accountUrl(pickedAccount)} target="_blank" rel="noopener noreferrer">

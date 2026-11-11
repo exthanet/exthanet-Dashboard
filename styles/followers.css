@@ -475,9 +475,10 @@
   display: inline-block;
 }
 
-/* Popup: tabs and the year table */
-.followers-tabs {
-  margin: 4px 0 10px;
+/* Popup: the chart, then the year table */
+.followers-popup-title {
+  font-size: 14px;
+  margin: 14px 0 6px;
 }
 .followers-years {
   overflow-x: auto;
