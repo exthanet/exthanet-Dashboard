@@ -182,3 +182,15 @@ test("a row turned into another account starts its history again", async () => {
   assert.deepEqual(s.series, { "2026-11-08": 2869 });
   assert.equal(s.account, "metricool|tiktok|6499994|");
 });
+
+test("years: calendar-year post totals, months covered, followers at each year's end", async () => {
+  const { accountYears } = await import("../lib/dashboard/socialAccounts.ts");
+  const a = { id: "t", name: "ถก", platform: "facebook", source: "metricool", blogId: 6499952, enabled: true };
+  const post = (date, views) => ({ platform: "Facebook", channel: "ถกไม่เถียง", date, views, likes: 10, comments: 1, shares: 0 });
+  const rows = [post("2025-09-20", 100), post("2025-12-01", 300), post("2026-01-05", 1000), post("2026-03-01", 500), { ...post("2026-03-02", 9), channel: "อื่น" }];
+  const stat = { series: { "2025-01-02": 50, "2025-12-31": 80, "2026-11-10": 120 } };
+  const ys = accountYears(a, rows, stat, "2026-11-11");
+  assert.deepEqual(ys.map((y) => [y.year, y.posts, y.views, y.months, y.followersEnd]), [[2026, 2, 1500, 2, 120], [2025, 2, 400, 2, 80]]);
+  // An account without posts in the system still gets its followers by year.
+  assert.deepEqual(accountYears({ ...a, platform: "line", source: "manual" }, rows, stat, "2026-11-11").map((y) => [y.year, y.posts, y.followersEnd]), [[2026, 0, 120], [2025, 0, 80]]);
+});

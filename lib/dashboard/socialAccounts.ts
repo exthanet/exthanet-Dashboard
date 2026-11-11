@@ -229,6 +229,32 @@ export function accountPosts(a: SocialAccount, rows: PostRow[], from: string, to
   return { ...t, er: t.views ? (t.likes + t.comments + t.shares) / t.views : null };
 }
 
+export interface YearRow extends PostTotals {
+  year: number;
+  /** Months of that year that have posts (a year the system started part-way is short). */
+  months: number;
+  /** Followers on the year's last day (or the latest day of the running year). */
+  followersEnd: number | null;
+}
+
+/** Calendar years, newest first: the account's post totals and its followers at the year's end. */
+export function accountYears(a: SocialAccount, rows: PostRow[], stat: AccountStat | undefined, today: string): YearRow[] {
+  const channel = a.blogId ? BRAND_CHANNEL[a.blogId] : undefined;
+  const platform = POST_PLATFORM[a.platform];
+  const mine = channel && platform ? rows.filter((r) => r.platform === platform && r.channel === channel) : [];
+  const years = new Set<number>(mine.map((r) => Number(r.date.slice(0, 4))));
+  for (const d of Object.keys(stat?.series || {})) years.add(Number(d.slice(0, 4)));
+  return [...years]
+    .filter((y) => y > 2000)
+    .sort((x, y) => y - x)
+    .map((y) => {
+      const end = `${y}-12-31` < today ? `${y}-12-31` : today;
+      const t = accountPosts(a, mine, `${y}-01-01`, end) || { posts: 0, views: 0, likes: 0, comments: 0, shares: 0, er: null };
+      const months = new Set(mine.filter((r) => r.date.startsWith(`${y}-`)).map((r) => r.date.slice(0, 7))).size;
+      return { year: y, ...t, months, followersEnd: followersOn(stat, end) };
+    });
+}
+
 const PAGE_URL: Partial<Record<SocialPlatform, (id: string) => string>> = {
   facebook: (id) => `https://www.facebook.com/${id}`,
   instagram: (id) => `https://www.instagram.com/${id}`,

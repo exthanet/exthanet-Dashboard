@@ -5,7 +5,7 @@
 // admin's typed number marked "รอตรวจสอบ". Click a card for a popup with its daily
 // followers and a link to the account; download the board as CSV.
 import { useEffect, useMemo, useState } from "react";
-import { Activity, ChartLine, Clock, Download, ExternalLink, Eye, Heart, MessageCircle, Pencil, PlugZap, Settings, Share2, TrendingDown, TrendingUp, TriangleAlert, Users, X } from "lucide-react";
+import { Activity, ChartLine, Clapperboard, Clock, Download, ExternalLink, Eye, Heart, MessageCircle, Pencil, PlugZap, Settings, Share2, TrendingDown, TrendingUp, TriangleAlert, Users, X } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { RecordRow } from "@/lib/dashboard/types";
 import {
@@ -13,6 +13,8 @@ import {
   SOCIAL_PLATFORMS,
   accountLogo,
   accountPosts,
+  accountYears,
+  type YearRow,
   accountUrl,
   boardTotal,
   currentFollowers,
@@ -85,10 +87,11 @@ const SOURCE_BADGE = {
   manual: { label: PENDING, title: "ยังไม่ได้ต่อ API · ตัวเลขกรอกโดยผู้ดูแล", Icon: Pencil },
 } as const;
 
-/** The account's posts in the last 30 days: views, likes, comments, shares and ER, each with its icon. */
+/** The account's posts in the last 12 months: posts, views, likes, comments, shares and ER, each with its icon. */
 function PostStats({ totals }: { totals: PostTotals | null }) {
   if (!totals) return <span className="followers-stats-row none">ไม่มีข้อมูลโพสต์ (ไม่ได้ sync โพสต์ของบัญชีนี้)</span>;
   const items = [
+    { Icon: Clapperboard, label: "โพสต์", value: full(totals.posts) },
     { Icon: Eye, label: "วิว", value: shortCount(totals.views) },
     { Icon: Heart, label: "ไลก์", value: shortCount(totals.likes) },
     { Icon: MessageCircle, label: "คอมเมนต์", value: shortCount(totals.comments) },
@@ -96,7 +99,7 @@ function PostStats({ totals }: { totals: PostTotals | null }) {
     { Icon: Activity, label: "ER", value: totals.er === null ? "–" : `${(totals.er * 100).toFixed(1)}%` },
   ];
   return (
-    <span className="followers-stats-row" title={`${full(totals.posts)} โพสต์ใน 30 วันล่าสุด`}>
+    <span className="followers-stats-row" title={`${full(totals.posts)} โพสต์ใน 12 เดือนล่าสุด`}>
       {items.map(({ Icon, label, value }) => (
         <span key={label}>
           <Icon size={14} aria-hidden="true" />
@@ -187,11 +190,13 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
     return rows.filter((r) => r.platform !== "TV" && r.date > from && r.date <= last).reduce((a, r) => a + (r.views || 0), 0);
   }, [rows]);
 
-  const posts30 = useMemo(() => {
-    const last = rows.filter((r) => r.platform !== "TV").map((r) => r.date).sort().pop() || "";
-    const from = last ? new Date(Date.parse(`${last}T00:00:00Z`) - 29 * 86400000).toISOString().slice(0, 10) : "";
-    return new Map(shown.map((a) => [a.id, last ? accountPosts(a, rows, from, last) : null]));
-  }, [rows, shown]);
+  const lastPostDay = useMemo(() => rows.filter((r) => r.platform !== "TV").map((r) => r.date).sort().pop() || "", [rows]);
+  // The cards show the last 12 months (the popup compares calendar years).
+  const posts12 = useMemo(() => {
+    const from = lastPostDay ? new Date(Date.parse(`${lastPostDay}T00:00:00Z`) - 364 * 86400000).toISOString().slice(0, 10) : "";
+    return new Map(shown.map((a) => [a.id, lastPostDay ? accountPosts(a, rows, from, lastPostDay) : null]));
+  }, [rows, shown, lastPostDay]);
+  const [tab, setTab] = useState<"chart" | "years">("chart");
 
   const growth = (a: SocialAccount) => {
     const now = currentFollowers(a, stats[a.id]);
@@ -206,6 +211,10 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
   );
   const pickedNow = pickedAccount ? currentFollowers(pickedAccount, stats[pickedAccount.id]) : null;
   const pickedGrowth = pickedAccount ? growth(pickedAccount) : null;
+  const pickedYears = useMemo(
+    () => (pickedAccount ? accountYears(pickedAccount, rows, stats[pickedAccount.id], lastPostDay || new Date().toISOString().slice(0, 10)) : []),
+    [pickedAccount, rows, stats, lastPostDay],
+  );
 
   return (
     <article className="panel full followers-board-panel" id="followers">
@@ -228,7 +237,7 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
               <Settings size={14} /> ตั้งค่าบัญชี
             </button>
           )}
-          <button className="tv-add" onClick={() => downloadCsv(groups, view, stats, growth, posts30)} disabled={!shown.length}>
+          <button className="tv-add" onClick={() => downloadCsv(groups, view, stats, growth, posts12)} disabled={!shown.length}>
             <Download size={14} /> ดาวน์โหลด CSV
           </button>
         </div>
@@ -280,8 +289,8 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                       role="button"
                       tabIndex={0}
                       className={`followers-card ${picked === a.id ? "active" : ""}`}
-                      onClick={() => setPicked(a.id)}
-                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setPicked(a.id))}
+                      onClick={() => (setTab("chart"), setPicked(a.id))}
+                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), (setTab("chart"), setPicked(a.id)))}
                       title={problem || stats[a.id]?.check || ""}
                     >
                       <SourceBadge a={a} stat={stats[a.id]} />
@@ -323,7 +332,7 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                           </span>
                         </span>
                       </span>
-                      <PostStats totals={posts30.get(a.id) ?? null} />
+                      <PostStats totals={posts12.get(a.id) ?? null} />
                     </div>
                   );
                 })}
@@ -336,7 +345,7 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
             <span><TriangleAlert size={12} /> ตรวจสอบ = 2 แหล่งต่างกันเกิน 2%</span>
             <span><Pencil size={12} /> {PENDING} = กรอกเอง</span>
             <span><ExternalLink size={12} /> เปิดบัญชี</span>
-            <span><Eye size={12} /> <Heart size={12} /> <MessageCircle size={12} /> <Share2 size={12} /> <Activity size={12} /> วิว · ไลก์ · คอมเมนต์ · แชร์ · ER ของโพสต์ 30 วันล่าสุด</span>
+            <span><Eye size={12} /> <Heart size={12} /> <MessageCircle size={12} /> <Share2 size={12} /> <Activity size={12} /> <Clapperboard size={12} /> โพสต์ · วิว · ไลก์ · คอมเมนต์ · แชร์ · ER รวม 12 เดือนล่าสุด</span>
           </p>
         </div>
       )}
@@ -372,10 +381,10 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                 </div>
               )}
               {(() => {
-                const p = posts30.get(pickedAccount.id);
+                const p = posts12.get(pickedAccount.id);
                 return p ? (
                   <div>
-                    โพสต์ 30 วัน
+                    โพสต์ 12 เดือน
                     <b>{full(p.posts)}</b>
                     วิว {shortCount(p.views)} · ER {p.er === null ? "–" : `${(p.er * 100).toFixed(1)}%`}
                   </div>
@@ -399,7 +408,17 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
               )}
             </div>
             {stats[pickedAccount.id]?.check && <p className="growth-notice warn">{stats[pickedAccount.id]!.check} · แสดงตัวเลขจาก{stats[pickedAccount.id]?.chosen === "api" ? " API" : " Metricool"}</p>}
-            {series.length > 1 ? (
+            <div className="segmented followers-tabs">
+              <button className={tab === "chart" ? "active" : ""} onClick={() => setTab("chart")}>
+                กราฟผู้ติดตาม
+              </button>
+              <button className={tab === "years" ? "active" : ""} onClick={() => setTab("years")}>
+                เทียบรายปี
+              </button>
+            </div>
+            {tab === "years" ? (
+              <YearTable years={pickedYears} hasPosts={posts12.get(pickedAccount.id) !== null} />
+            ) : series.length > 1 ? (
               <div className="chart-md">
                 <ResponsiveContainer>
                   <LineChart data={series}>
@@ -432,16 +451,99 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
   );
 }
 
+const change = (a: number, b: number) => (b ? (a - b) / b : null);
+
+/** Calendar years side by side; the change row compares per month, since a year may be only partly covered. */
+function YearTable({ years, hasPosts }: { years: YearRow[]; hasPosts: boolean }) {
+  if (!years.length) return <p className="ranking-empty">ยังไม่มีข้อมูลรายปี</p>;
+  const [cur, prev] = years;
+  const perMonth = (y: YearRow, k: "posts" | "views" | "likes" | "comments" | "shares") => (y.months ? y[k] / y.months : 0);
+  const pctCell = (v: number | null) =>
+    v === null ? <td>–</td> : <td className={v >= 0 ? "up" : "down"}>{`${v >= 0 ? "+" : ""}${Math.round(v * 100).toLocaleString("en-US")}%`}</td>;
+  const erOf = (y: YearRow) => (y.er === null ? "–" : `${(y.er * 100).toFixed(2)}%`);
+  return (
+    <div className="followers-years">
+      <table>
+        <thead>
+          <tr>
+            <th>ปี</th>
+            <th><Users size={13} aria-hidden="true" /> ผู้ติดตามสิ้นปี</th>
+            {hasPosts && (
+              <>
+                <th><Clapperboard size={13} aria-hidden="true" /> โพสต์</th>
+                <th><Eye size={13} aria-hidden="true" /> วิว</th>
+                <th>วิว/เดือน</th>
+                <th><Heart size={13} aria-hidden="true" /> ไลก์</th>
+                <th><MessageCircle size={13} aria-hidden="true" /> คอมเมนต์</th>
+                <th><Share2 size={13} aria-hidden="true" /> แชร์</th>
+                <th><Activity size={13} aria-hidden="true" /> ER</th>
+              </>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {years.map((y) => (
+            <tr key={y.year}>
+              <td>
+                {y.year + 543}
+                {hasPosts && <small>{y.months ? `${y.months} เดือน${y.months < 12 ? " ⚠️" : ""}` : "ไม่มีโพสต์"}</small>}
+              </td>
+              <td>{y.followersEnd === null ? "–" : full(y.followersEnd)}</td>
+              {hasPosts && (
+                <>
+                  <td>{full(y.posts)}</td>
+                  <td>{shortCount(y.views)}</td>
+                  <td>{shortCount(Math.round(perMonth(y, "views")))}</td>
+                  <td>{shortCount(y.likes)}</td>
+                  <td>{shortCount(y.comments)}</td>
+                  <td>{shortCount(y.shares)}</td>
+                  <td>{erOf(y)}</td>
+                </>
+              )}
+            </tr>
+          ))}
+          {prev && (
+            <tr className="followers-change">
+              <td>
+                เปลี่ยนแปลง<small>{hasPosts ? "เทียบเฉลี่ยต่อเดือน" : "ผู้ติดตาม"}</small>
+              </td>
+              {cur.followersEnd !== null && prev.followersEnd !== null ? pctCell(change(cur.followersEnd, prev.followersEnd)) : <td>–</td>}
+              {hasPosts && (
+                <>
+                  {pctCell(prev.months ? change(perMonth(cur, "posts"), perMonth(prev, "posts")) : null)}
+                  {pctCell(prev.months ? change(perMonth(cur, "views"), perMonth(prev, "views")) : null)}
+                  {pctCell(prev.months ? change(perMonth(cur, "views"), perMonth(prev, "views")) : null)}
+                  {pctCell(prev.months ? change(perMonth(cur, "likes"), perMonth(prev, "likes")) : null)}
+                  {pctCell(prev.months ? change(perMonth(cur, "comments"), perMonth(prev, "comments")) : null)}
+                  {pctCell(prev.months ? change(perMonth(cur, "shares"), perMonth(prev, "shares")) : null)}
+                  {cur.er !== null && prev.er !== null ? (
+                    <td className={cur.er >= prev.er ? "up" : "down"}>{`${cur.er >= prev.er ? "+" : ""}${((cur.er - prev.er) * 100).toFixed(2)} จุด`}</td>
+                  ) : (
+                    <td>–</td>
+                  )}
+                </>
+              )}
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <p className="audience-note">
+        ⚠️ = ปีที่มีข้อมูลโพสต์ไม่ครบ 12 เดือน (ระบบเริ่มเก็บโพสต์ ก.ค.–ก.ย. 2568) แถวเปลี่ยนแปลงจึงเทียบแบบเฉลี่ยต่อเดือน · ผู้ติดตามสิ้นปี = ค่าวันสุดท้ายของปี (ปีปัจจุบันใช้ค่าล่าสุด)
+      </p>
+    </div>
+  );
+}
+
 /** The board as CSV (Excel opens it with Thai intact), grouped as on screen. */
-function downloadCsv(groups: Group[], view: View, stats: Record<string, AccountStat>, growth: (a: SocialAccount) => number | null, posts30: Map<string, PostTotals | null>) {
-  const head = ["กลุ่ม", "รายการ", "แพลตฟอร์ม", "บัญชี", "ผู้ติดตาม", "ข้อมูลวันที่", "เพิ่มขึ้น 30 วัน", "ที่มา", "ตัวเลข API", "ตัวเลข Metricool", "หมายเหตุ", "โพสต์ 30 วัน", "วิว 30 วัน", "ไลก์ 30 วัน", "คอมเมนต์ 30 วัน", "แชร์ 30 วัน", "ER 30 วัน", "ลิงก์"];
+function downloadCsv(groups: Group[], view: View, stats: Record<string, AccountStat>, growth: (a: SocialAccount) => number | null, posts12: Map<string, PostTotals | null>) {
+  const head = ["กลุ่ม", "รายการ", "แพลตฟอร์ม", "บัญชี", "ผู้ติดตาม", "ข้อมูลวันที่", "เพิ่มขึ้น 30 วัน", "ที่มา", "ตัวเลข API", "ตัวเลข Metricool", "หมายเหตุ", "โพสต์ 12 เดือน", "วิว 12 เดือน", "ไลก์ 12 เดือน", "คอมเมนต์ 12 เดือน", "แชร์ 12 เดือน", "ER 12 เดือน", "ลิงก์"];
   const lines = groups.flatMap((g) =>
     g.accounts.map((a) => {
       const now = currentFollowers(a, stats[a.id]);
       const gr = growth(a);
       const st = stats[a.id];
       const source = SOURCE_BADGE[sourceOf(a, st)].label;
-      const p = posts30.get(a.id);
+      const p = posts12.get(a.id);
       const num = (v?: number) => (v === undefined ? "" : String(v));
       return [
         g.label, groupOf(a), PLATFORM_LABEL[a.platform], a.name, now ? String(now.value) : "", now?.date || "", gr === null ? "" : String(gr), source,

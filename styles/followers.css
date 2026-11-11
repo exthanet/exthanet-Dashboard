@@ -302,7 +302,7 @@
 .followers-src.manual { background: #fff4d6; color: #7a5200; }
 .followers-stats-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 2px;
   border-top: 1px solid #eef1f6;
   padding-top: 6px;
@@ -473,4 +473,50 @@
   height: 8px;
   border-radius: 50%;
   display: inline-block;
+}
+
+/* Popup: tabs and the year table */
+.followers-tabs {
+  margin: 4px 0 10px;
+}
+.followers-years {
+  overflow-x: auto;
+}
+.followers-years table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.followers-years th {
+  color: #6b7488;
+  font-weight: 600;
+  font-size: 11px;
+  text-align: right;
+  padding: 6px;
+  border-bottom: 1px solid #e5e9f0;
+  white-space: nowrap;
+}
+.followers-years th svg {
+  vertical-align: -2px;
+}
+.followers-years td {
+  text-align: right;
+  padding: 7px 6px;
+  border-bottom: 1px solid #eef1f6;
+  white-space: nowrap;
+}
+.followers-years th:first-child,
+.followers-years td:first-child {
+  text-align: left;
+}
+.followers-years td small {
+  display: block;
+  color: #6b7488;
+  font-size: 10px;
+}
+.followers-years .up { color: #067647; }
+.followers-years .down { color: #b42318; }
+.followers-change td {
+  font-weight: 700;
+  background: #f8fafc;
 }
