@@ -34,7 +34,9 @@
 .followers-group header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
   color: #1f2533;
   font-weight: 800;
   font-size: 15px;
@@ -520,4 +522,50 @@
 .followers-change td {
   font-weight: 700;
   background: #f8fafc;
+}
+
+/* Group header: platform dots and totals across platforms */
+.followers-group-platforms {
+  display: inline-flex;
+  gap: 3px;
+}
+.followers-group-platforms .followers-dot {
+  width: 8px;
+  height: 8px;
+}
+.followers-group-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-weight: 500;
+}
+.followers-group-totals > span {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 10px;
+  color: #6b7488;
+  min-width: 44px;
+}
+.followers-group-totals .t {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.followers-group-totals .t svg {
+  color: #43506a;
+}
+.followers-group-totals b {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2533;
+}
+.followers-group-totals .followers b,
+.followers-group-totals .followers svg {
+  color: #e0262b;
+}
+.followers-group-totals .none {
+  color: #8b93a7;
+  font-size: 11px;
+  justify-content: center;
 }

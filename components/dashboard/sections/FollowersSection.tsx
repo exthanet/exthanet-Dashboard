@@ -111,6 +111,47 @@ function PostStats({ totals }: { totals: PostTotals | null }) {
   );
 }
 
+/**
+ * A group's header: its followers and, for the accounts that have posts in the system, the
+ * 12-month posts, views, likes, comments, shares and ER added across platforms.
+ */
+function GroupTotals({ followers, totals }: { followers: number; totals: (PostTotals | null)[] }) {
+  const have = totals.filter((t): t is PostTotals => !!t);
+  const sum = (k: "posts" | "views" | "likes" | "comments" | "shares") => have.reduce((a, t) => a + t[k], 0);
+  const views = sum("views");
+  const items = have.length
+    ? [
+        { Icon: Clapperboard, label: "โพสต์", value: full(sum("posts")) },
+        { Icon: Eye, label: "วิว", value: shortCount(views) },
+        { Icon: Heart, label: "ไลก์", value: shortCount(sum("likes")) },
+        { Icon: MessageCircle, label: "คอมเมนต์", value: shortCount(sum("comments")) },
+        { Icon: Share2, label: "แชร์", value: shortCount(sum("shares")) },
+        { Icon: Activity, label: "ER", value: views ? `${(((sum("likes") + sum("comments") + sum("shares")) / views) * 100).toFixed(1)}%` : "–" },
+      ]
+    : [];
+  return (
+    <span className="followers-group-totals" title={have.length < totals.length ? `ยอดโพสต์รวมเฉพาะ ${have.length} จาก ${totals.length} บัญชีที่มีข้อมูลโพสต์` : "ยอดโพสต์รวม 12 เดือนล่าสุด"}>
+      <span className="followers">
+        <span className="t">
+          <Users size={15} aria-hidden="true" />
+          <b>{full(followers)}</b>
+        </span>
+        ผู้ติดตาม
+      </span>
+      {items.map(({ Icon, label, value }) => (
+        <span key={label}>
+          <span className="t">
+            <Icon size={15} aria-hidden="true" />
+            <b>{value}</b>
+          </span>
+          {label}
+        </span>
+      ))}
+      {!have.length && <span className="none">ไม่มีข้อมูลโพสต์</span>}
+    </span>
+  );
+}
+
 interface Group {
   key: string;
   label: string;
@@ -272,10 +313,16 @@ export function FollowersSection({ rows, isAdmin, openSettings }: { rows: Record
                 <span>
                   {view === "platform" && <i className="followers-dot" style={{ background: PLATFORM_COLOR[g.key as SocialPlatform] }} />}
                   {g.label}
+                  {view === "group" && (
+                    <span className="followers-group-platforms">
+                      {[...new Set(g.accounts.map((a) => a.platform))].map((p) => (
+                        <i key={p} className="followers-dot" style={{ background: PLATFORM_COLOR[p] }} title={PLATFORM_LABEL[p]} />
+                      ))}
+                    </span>
+                  )}
+                  <small>{g.accounts.length} บัญชี</small>
                 </span>
-                <small>
-                  {full(g.total)} · {g.accounts.length} บัญชี
-                </small>
+                <GroupTotals followers={g.total} totals={g.accounts.map((a) => posts12.get(a.id) ?? null)} />
               </header>
               <div className="followers-grid">
                 {g.accounts.map((a) => {
