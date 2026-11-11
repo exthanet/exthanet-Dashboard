@@ -5,5 +5,5 @@
   { "blogId": 6499969, "label": "TERO News", "mode": "single", "program": "TERO News", "lockProgram": true, "enabled": true, "networks": ["facebook"] },
   { "blogId": 6499994, "label": "Kids Fun คิดฝัน", "mode": "single", "program": "Kidsfun", "enabled": true, "networks": ["tiktok", "youtube"], "youtubeChannelId": "UCrMym6dFPiXrRfzTvgs5WnQ" },
   { "blogId": 6500128, "label": "HITZ Thailand", "mode": "single", "program": "Hitzradio", "enabled": true, "youtubeChannelId": "UCNcZ9a94asv8TOP435PaCiA" },
-  { "blogId": 0, "label": "Off Script Off Record", "mode": "single", "program": "Off Script Off Record", "lockProgram": true, "enabled": true, "networks": [] }
+  { "blogId": 7916751, "label": "Off Script Off Record", "mode": "single", "program": "Off Script Off Record", "lockProgram": true, "enabled": true, "youtubeChannelId": "UCz-Lx4K3bFPeQzc8GT3tvuw" }
 ]
