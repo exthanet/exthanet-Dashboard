@@ -23,6 +23,7 @@ import { recordKey } from "@/lib/dashboard/growth";
 import { loadThumbnails, thumbnailFor } from "@/lib/thumbnailData";
 import { track } from "@/lib/loadingBar";
 import { ClipComments } from "@/components/dashboard/sections/ClipComments";
+import { ClipProgramEditor } from "@/components/dashboard/sections/ClipProgramEditor";
 
 const thDate = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "2-digit" }) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", ...opts }).format(new Date(`${iso}T00:00:00Z`)) : "";
@@ -181,6 +182,8 @@ export function ClipDetailPanel({ clip, allRows, days, rangeDays, latestDate, on
             <X size={18} />
           </button>
         </header>
+
+        <ClipProgramEditor posts={d.posts.map((p) => p.row)} allRows={allRows} />
 
         {d.byTitle && (
           <p className="growth-notice">

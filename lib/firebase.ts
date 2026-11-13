@@ -15,7 +15,7 @@ import type { AffiliateData } from "@/lib/dashboard/affiliateParser";
 import type { RevenueData } from "@/lib/dashboard/revenueParser";
 import type { RevenueApiMonth } from "@/lib/dashboard/revenueApi";
 import { joinFromStore, splitForStore, type AffiliateSheets, type AffiliateStoreMain, type AffiliateStoreMonth } from "@/lib/dashboard/affiliateSheets";
-import { applySplitChanges, planProgramSplits, readSplitMoved, type ProgramSplit } from "@/lib/dashboard/programSplits";
+import { applySplitChanges, planProgramSplits, readProgramEdits, readSplitMoved, type ProgramSplit } from "@/lib/dashboard/programSplits";
 import { rowKey } from "@/lib/dashboard/postKey";
 
 export const firebaseConfig = {
@@ -173,6 +173,7 @@ export async function applyProgramSplitsToFirebase(
   const now = new Date().toISOString();
   await setDoc(doc(db, "syncConfig", "programSplits"), { rules, updatedAt: now, updatedBy });
   const movedSnap = await getDoc(doc(db, "syncConfig", "programSplitsMoved"));
+  const editsSnap = await getDoc(doc(db, "syncConfig", "programEdits"));
   const snapshot = await getDocs(collection(db, "masterData"));
   const chunks = snapshot.docs.filter((d) => d.id.startsWith("chunk_") && Array.isArray(d.data().rows));
   const rows: RawRow[] = [];
@@ -183,7 +184,7 @@ export async function applyProgramSplitsToFirebase(
       chunkOf.push(c);
     }
   });
-  const plan = planProgramSplits(rows, rules, readSplitMoved(movedSnap.data()), rowKey);
+  const plan = planProgramSplits(rows, rules, readSplitMoved(movedSnap.data()), rowKey, new Set(Object.keys(readProgramEdits(editsSnap.data()))));
   await setDoc(doc(db, "syncConfig", "programSplitsMoved"), { moved: plan.moved, updatedAt: now });
   if (!plan.changes.length) return { moved: 0, back: 0, chunks: 0 };
 
@@ -200,6 +201,49 @@ export async function applyProgramSplitsToFirebase(
     console.warn("dashboard copy not written; the dashboard will read masterData:", e);
   }
   return { moved: plan.changes.filter((c) => c.kind === "move").length, back: plan.changes.filter((c) => c.kind === "back").length, chunks: touched.length };
+}
+
+/**
+ * An admin sets the Program of one clip (every platform's post of it): masterData read
+ * fresh, only the chunks holding those rows written, the fast-open copy rebuilt, and the
+ * choice kept in syncConfig/programEdits so the sync and the split rules leave it as set.
+ */
+export async function setClipProgramInFirebase(keys: string[], program: string, updatedBy: string): Promise<{ rows: number }> {
+  const now = new Date().toISOString();
+  const want = new Set(keys.filter(Boolean));
+  const snapshot = await getDocs(collection(db, "masterData"));
+  const chunks = snapshot.docs.filter((d) => d.id.startsWith("chunk_") && Array.isArray(d.data().rows));
+  const rows: RawRow[] = [];
+  const touched = new Set<number>();
+  // data() returns a new copy each call: keep the copy that is changed.
+  const perChunk = chunks.map((d) => d.data().rows as RawRow[]);
+  perChunk.forEach((list, c) => {
+    for (const r of list) {
+      if (r.Platform !== "TV" && want.has(rowKey(r)) && r.Program !== program) {
+        r.Program = program;
+        touched.add(c);
+      }
+      rows.push(r);
+    }
+  });
+  await setDoc(
+    doc(db, "syncConfig", "programEdits"),
+    { edits: Object.fromEntries([...want].map((k) => [k, { program, by: updatedBy, at: now }])), updatedAt: now, updatedBy },
+    { merge: true },
+  );
+  if (!touched.size) return { rows: 0 };
+  await deleteDoc(doc(db, "dashboardCache", "meta"));
+  for (const c of touched) {
+    const own = perChunk[c].map((r) => cleanRowForFirestore(r as Record<string, unknown>));
+    await setDoc(doc(db, "masterData", chunks[c].id), { rows: own, updatedAt: now }, { merge: true });
+  }
+  try {
+    const { writeDashboardCache } = await import("@/lib/dashboardCache");
+    await writeDashboardCache(rows, now, now);
+  } catch (e) {
+    console.warn("dashboard copy not written; the dashboard will read masterData:", e);
+  }
+  return { rows: rows.filter((r) => want.has(rowKey(r))).length };
 }
 
 /**

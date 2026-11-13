@@ -195,6 +195,10 @@ service cloud.firestore {
         || (doc == "programSplitsMoved"
           && request.resource.data.keys().hasOnly(["moved", "updatedAt"])
           && request.resource.data.moved is map)
+        // Program an admin set on one clip (หน้ารายละเอียดคลิป): rowKey → program; the sync keeps it.
+        || (doc == "programEdits"
+          && request.resource.data.keys().hasOnly(["edits", "updatedAt", "updatedBy"])
+          && request.resource.data.edits is map)
       );
     }
     // TV workbook tabs uploaded by an admin; the next sync merges them.

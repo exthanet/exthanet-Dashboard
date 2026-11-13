@@ -43,7 +43,7 @@ import { YouTubeDataApi, combineYouTube, mapYouTubeVideo } from "../lib/integrat
 import { channelUploads, collectAccMonth, writeAccMonth } from "../lib/integrations/accMonthlyCollect.ts";
 import { collectRevenueMonth, listCmsChannels, writeRevenueApiMonth } from "../lib/integrations/revenueApiCollect.ts";
 import { ACC_CHANNELS, programVideoIds } from "../lib/dashboard/accMonthly.ts";
-import { applySplitChanges, planProgramSplits, readSplitMoved, readSplits, splitParents } from "../lib/dashboard/programSplits.ts";
+import { applySplitChanges, planProgramSplits, readProgramEdits, readSplitMoved, readSplits, splitParents } from "../lib/dashboard/programSplits.ts";
 import { accessTokenFor, analyticsProblem, analyticsQuery, applyVideoStats, loadCmsAccount } from "../lib/integrations/youtubeAnalytics.ts";
 import { collectYtAnalytics, writeYtAnalytics } from "../lib/integrations/ytAnalyticsCollect.ts";
 import { postId } from "../lib/dashboard/postKey.ts";
@@ -771,11 +771,22 @@ async function programSplitStep(rows) {
   if (baselineFile !== "firestore") return none;
   try {
     const db = await firestore();
-    const [rulesDoc, movedDoc] = await Promise.all([db.get("syncConfig/programSplits"), db.get("syncConfig/programSplitsMoved")]);
+    const [rulesDoc, movedDoc, editsDoc] = await Promise.all([db.get("syncConfig/programSplits"), db.get("syncConfig/programSplitsMoved"), db.get("syncConfig/programEdits")]);
     const rules = readSplits(rulesDoc ? decodeFields(rulesDoc.fields || {}) : null);
     const before = readSplitMoved(movedDoc ? decodeFields(movedDoc.fields || {}) : null);
+    // A Program an admin set on a clip (หน้ารายละเอียดคลิป) wins over the rules and stays as set.
+    const edits = readProgramEdits(editsDoc ? decodeFields(editsDoc.fields || {}) : null);
+    let edited = 0;
+    for (const r of rows) {
+      const e = edits[rowKey(r)];
+      if (e && r.Platform !== "TV" && r.Program !== e.program) {
+        r.Program = e.program;
+        edited++;
+      }
+    }
+    if (edited) console.log(`รายการที่ admin แก้: ใช้กับ ${edited} แถว`);
     if (!rules.length && !Object.keys(before).length) return none;
-    const plan = planProgramSplits(rows, rules, before, rowKey);
+    const plan = planProgramSplits(rows, rules, before, rowKey, new Set(Object.keys(edits)));
     applySplitChanges(rows, plan.changes);
     const count = (kind) => plan.changes.filter((c) => c.kind === kind).length;
     console.log(`แยกรายการย่อย: ${rules.length} กฎ · ย้าย ${count("move")} แถว · คืนรายการแม่ ${count("back")} แถว`);

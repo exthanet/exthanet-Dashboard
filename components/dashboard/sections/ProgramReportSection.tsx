@@ -10,6 +10,7 @@ import { PLATFORM_COLORS } from "@/lib/dashboard/constants";
 import { OTHERS, monthsOf, programDetail, programTable, type ProgramLine } from "@/lib/dashboard/programReport";
 import { ClipDetailPanel } from "@/components/dashboard/sections/ClipDetailPanel";
 import { recordDownload } from "@/lib/auth/activity";
+import { useAdmin } from "@/components/dashboard/shared/AdminContext";
 
 const LINE_COLORS = ["#ef4444", "#2563eb", "#16a34a", "#f59e0b", "#8b5cf6", "#0891b2"];
 const thDate = (iso: string) => (iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`)) : "");
@@ -233,6 +234,7 @@ export function ProgramReportSection({ rows, allRows, startDate, endDate, compar
           </div>
         </>
       )}
+      <UnassignedClips allRows={allRows} startDate={startDate} endDate={endDate} onOpen={setOpened} />
     </section>
   );
 }
@@ -313,5 +315,61 @@ function ProgramRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+/**
+ * Admins: posts of the range still on "ไม่ระบุ", most viewed first, the same clip on several
+ * platforms as one line; a click opens the clip panel, where its program can be set.
+ */
+function UnassignedClips({ allRows, startDate, endDate, onOpen }: { allRows: RecordRow[]; startDate: string; endDate: string; onOpen: (r: RecordRow) => void }) {
+  const { isAdmin } = useAdmin();
+  const [showAll, setShowAll] = useState(false);
+  const list = useMemo(() => {
+    const byTitle = new Map<string, { row: RecordRow; views: number; platforms: Set<string>; posts: number }>();
+    for (const r of allRows) {
+      if (r.platform === "TV" || (r.program && r.program !== "ไม่ระบุ") || r.date < startDate || r.date > endDate) continue;
+      const k = r.topic.replace(/s+/g, " ").trim().slice(0, 60) || `${r.platform}-${r.contentId}`;
+      const e = byTitle.get(k) || { row: r, views: 0, platforms: new Set<string>(), posts: 0 };
+      e.views += r.views || 0;
+      e.posts++;
+      e.platforms.add(r.platform);
+      if ((r.views || 0) > (e.row.views || 0)) e.row = r;
+      byTitle.set(k, e);
+    }
+    return [...byTitle.values()].sort((a, b) => b.views - a.views);
+  }, [allRows, startDate, endDate]);
+  if (!isAdmin || !list.length) return null;
+  const shown = showAll ? list : list.slice(0, 15);
+  const posts = list.reduce((a, e) => a + e.posts, 0);
+  return (
+    <div className="unassigned-clips">
+      <h3>
+        คลิปที่ยังไม่ระบุรายการ <small>{num(posts)} โพสต์ · {num(list.length)} คลิป · กดเพื่อเลือกรายการ (admin)</small>
+      </h3>
+      <table>
+        <thead>
+          <tr>
+            <th>คลิป</th>
+            <th>แพลตฟอร์ม</th>
+            <th className="num">วิว</th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map((e) => (
+            <tr key={`${e.row.platform}-${e.row.contentId}`} onClick={() => onOpen(e.row)} className="clickable">
+              <td>{e.row.topic.replace(/s+/g, " ").slice(0, 90) || "(ไม่มีข้อความ)"}</td>
+              <td>{[...e.platforms].join(", ")}</td>
+              <td className="num">{num(e.views)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {list.length > shown.length && (
+        <button type="button" className="tv-add" onClick={() => setShowAll(true)}>
+          ดูทั้งหมด {num(list.length)} คลิป
+        </button>
+      )}
+    </div>
   );
 }

@@ -2493,3 +2493,103 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Clip panel: admins set the clip's program */
+.clip-program-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  border: 1px solid #c9d3e3;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.clip-program-edit label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.clip-program-edit select {
+  min-width: 200px;
+  border: 1px solid #c9d3e3;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  background: #fff;
+}
+.clip-program-edit button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 12px;
+  background: #0757e8;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.clip-program-edit button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.clip-program-was {
+  font-size: 11px;
+  background: #fff4d6;
+  color: #7a5200;
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+.clip-program-edit small {
+  flex-basis: 100%;
+  color: #6b7488;
+  font-size: 11px;
+}
+
+/* รวมรายการ: clips still on "ไม่ระบุ" (admins) */
+.unassigned-clips {
+  margin-top: 18px;
+  border-top: 1px solid #e5e9f0;
+  padding-top: 12px;
+}
+.unassigned-clips h3 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+.unassigned-clips h3 small {
+  font-weight: 500;
+  color: #6b7488;
+  font-size: 11px;
+  margin-left: 6px;
+}
+.unassigned-clips table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.unassigned-clips th {
+  text-align: left;
+  color: #6b7488;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 6px;
+}
+.unassigned-clips td {
+  border-top: 1px solid #eef1f6;
+  padding: 6px;
+}
+.unassigned-clips .num {
+  text-align: right;
+}
+.unassigned-clips tr.clickable {
+  cursor: pointer;
+}
+.unassigned-clips tr.clickable:hover {
+  background: #f5f7fb;
+}
+.unassigned-clips .tv-add {
+  margin-top: 8px;
+}

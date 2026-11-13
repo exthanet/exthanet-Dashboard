@@ -57,6 +57,7 @@ import "@/styles/theme-light.css";
 import RevenueReport from "@/components/dashboard/RevenueReport";
 import AffiliateReport from "@/components/dashboard/AffiliateReport";
 import { track } from "@/lib/loadingBar";
+import { AdminContext } from "@/components/dashboard/shared/AdminContext";
 
 // Same breakpoint as the mobile rules in styles/dashboard.css.
 const MOBILE_QUERY = "(max-width: 800px)";
@@ -174,6 +175,7 @@ export default function Dashboard() {
   }
 
   return (
+    <AdminContext.Provider value={{ isAdmin, email: auth.user?.email || "" }}>
     <main className="dashboard-shell">
       <DashboardSidebar
         menuOpen={model.menuOpen}
@@ -553,5 +555,6 @@ export default function Dashboard() {
       />
       <TopLoadingBar busy={model.loading || model.filtering} />
     </main>
+    </AdminContext.Provider>
   );
 }

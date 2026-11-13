@@ -68,3 +68,15 @@ test("reading Firestore data and the parent map", () => {
   assert.deepEqual(readSplitMoved({ moved: { w: { name: "x", parent: "y", keys: ["a", 1] } } }), { w: { name: "x", parent: "y", keys: ["a", "1"] } });
   assert.deepEqual([...splitParents([wolf])], [["ถกใจคนค้นหมาป่า", "ถกไม่เถียง"]]);
 });
+
+test("a row an admin set by hand is never moved by a rule; edits are read from Firestore", async () => {
+  const { readProgramEdits } = await import("../lib/dashboard/programSplits.ts");
+  const rows = [row("a", "ไม่ระบุ", "#bettertrade2026"), row("b", "ไม่ระบุ", "#bettertrade2026")];
+  const bt = { id: "bt", name: "BetterTrade 2026", parent: "ไม่ระบุ", keywords: ["bettertrade"], enabled: true };
+  const plan = planProgramSplits(rows, [bt], {}, key, new Set(["b"]));
+  assert.deepEqual(plan.changes.map((c) => c.index), [0]);
+  // A moved row the admin later locked is not sent back either.
+  const back = planProgramSplits([row("a", "BetterTrade 2026", "x")], [], { bt: { name: "BetterTrade 2026", parent: "ไม่ระบุ", keys: ["a"] } }, key, new Set(["a"]));
+  assert.deepEqual(back.changes, []);
+  assert.deepEqual(readProgramEdits({ edits: { "TikTok|1": { program: " Off Script Off Record ", by: "x" }, "TikTok|2": { program: "" } } }), { "TikTok|1": { program: "Off Script Off Record", by: "x" } });
+});

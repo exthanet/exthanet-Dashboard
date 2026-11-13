@@ -56,6 +56,8 @@ export function planProgramSplits(
   rules: ProgramSplit[],
   moved: SplitMoved,
   keyOf: (row: SplitRow) => string,
+  /** Rows an admin set by hand (programEdits): rules never move them. */
+  locked: Set<string> = new Set(),
 ): { changes: SplitChange[]; moved: SplitMoved } {
   const byKey = new Map<string, number>();
   rows.forEach((r, i) => {
@@ -69,7 +71,7 @@ export function planProgramSplits(
   for (const [id, entry] of Object.entries(moved)) {
     for (const k of entry.keys) {
       const i = byKey.get(k);
-      if (i === undefined || program[i] !== entry.name) continue;
+      if (i === undefined || program[i] !== entry.name || locked.has(k)) continue;
       const rule = active.find((r) => r.id === id);
       const still = rule && rule.name === entry.name && rule.parent === entry.parent && splitFor({ ...rows[i], Program: entry.parent }, active)?.id === id;
       if (still) continue;
@@ -92,7 +94,7 @@ export function planProgramSplits(
     const rule = splitFor({ ...row, Program: program[i] }, active);
     if (!rule) return;
     const k = keyOf(row);
-    if (!k) return;
+    if (!k || locked.has(k)) return;
     changes.push({ index: i, from: program[i], to: rule.name, kind: "move" });
     program[i] = rule.name;
     next[rule.id].keys.push(k);
@@ -108,6 +110,17 @@ export function applySplitChanges(rows: { Program?: unknown }[], changes: SplitC
 /** For reports kept in the parent's line (the accounting team's Monthly ACC): sub-show → parent. */
 export function splitParents(rules: ProgramSplit[]): Map<string, string> {
   return new Map(rules.filter((r) => r.name.trim() && r.parent.trim()).map((r) => [r.name.trim(), r.parent.trim()]));
+}
+
+/** An admin's hand-set Program per row (syncConfig/programEdits): rowKey → program. */
+export type ProgramEdits = Record<string, { program: string; by?: string; at?: string }>;
+
+export function readProgramEdits(data: unknown): ProgramEdits {
+  const e = (data as { edits?: unknown })?.edits;
+  const out: ProgramEdits = {};
+  if (!e || typeof e !== "object") return out;
+  for (const [k, v] of Object.entries(e as Record<string, Record<string, unknown>>)) if (v && String(v.program ?? "").trim()) out[k] = { program: String(v.program).trim(), ...(v.by ? { by: String(v.by) } : {}), ...(v.at ? { at: String(v.at) } : {}) };
+  return out;
 }
 
 /** Firestore → rules / moved, tolerating missing or odd fields. */
