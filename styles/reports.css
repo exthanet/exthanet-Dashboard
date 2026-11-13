@@ -649,3 +649,15 @@
   color: #9ca3af;
   font-size: 11px;
 }
+.aff-sheet-count { font-size: 12px; color: #6b7488; align-self: center; }
+.aff-sheet-table { margin-top: 12px; font-size: 12px; }
+.aff-sheet-table h4 { margin: 0 0 6px; font-size: 13px; }
+.aff-sheet-table table { width: 100%; border-collapse: collapse; }
+.aff-sheet-table th { text-align: left; color: #64748b; font-weight: 600; font-size: 11px; padding: 4px 6px; border-bottom: 1px solid #e2e8f0; }
+.aff-sheet-table td { padding: 5px 6px; border-bottom: 1px solid #f1f5f9; color: #065f46; font-weight: 600; }
+.aff-sheet-table td:first-child { color: #1e293b; }
+.aff-sheet-table td.none { color: #94a3b8; font-weight: 400; }
+.aff-sheet-table td.warn { color: #b45309; }
+.aff-sheet-table button { display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 50%; background: transparent; color: #b91c1c; cursor: pointer; }
+.aff-sheet-table button:hover { background: #fee2e2; }
+.aff-sheet-table > small { display: block; margin-top: 6px; color: #64748b; }

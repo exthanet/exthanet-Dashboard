@@ -1,7 +1,8 @@
 "use client";
 // Import Affiliate → "นำเข้าจาก Google Sheet": the YouTube Studio Shopping exports
-// kept in Google Sheets (any number of links: revenue by period, by product, by
-// content; one month each or a longer period). The sync reads them into a draft
+// kept in Google Sheets (revenue by period, by product, by content; one month each or a
+// longer period). Only the files to update need a link: each file's month is read from its
+// days, and importing replaces just those months; every month imported before stays. The sync reads them into a draft
 // only when an admin asks ("ดึงจาก Sheet ตอนนี้", lib/integrations/affiliateSheetsSync.ts),
 // then checks it here and saves. It is not part of the daily sync.
 import { useEffect, useState } from "react";
@@ -16,6 +17,18 @@ const thMonth = (m: string) => `${TH[Number(m.slice(5, 7)) - 1]} ${m.slice(2, 4)
 const thDay = (d?: string) => (d ? `${Number(d.slice(8, 10))} ${thMonth(d.slice(0, 7))}` : "");
 const thTime = (iso?: string) =>
   iso ? new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso)) : "";
+/** The Firestore rule allows this many links (syncConfig/affiliateSheets). */
+const MAX_LINKS = 40;
+/** True when the export covers its whole month (a part-month file is shown with its days). */
+const wholeMonth = (st: { month?: string; from?: string; to?: string }) => {
+  if (!st.month || !st.from || !st.to) return !!st.month && !st.from;
+  const [y, m] = st.month.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return st.from === `${st.month}-01` && st.to === `${st.month}-${String(last).padStart(2, "0")}`;
+};
+const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 7);
+/** A file of a month that has ended but does not cover all of it. */
+const endedShort = (st: { month?: string; from?: string; to?: string }) => !!st.month && st.month < thisMonth() && !wholeMonth(st);
 const KIND: Record<string, string> = { period: "รายเดือน (revenue by period)", product: "รายสินค้า", content: "รายคลิป", unknown: "ไม่รู้จักรูปแบบ" };
 const months = (list: string[]) => (list.length > 3 ? `${thMonth(list[0])} – ${thMonth(list[list.length - 1])} (${list.length} เดือน)` : list.map(thMonth).join(", "));
 
@@ -53,6 +66,7 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
     const bad = clean.find((l) => !isSheetLink(l));
     if (bad) return setMsg({ ok: false, text: "ทุกลิงก์ต้องเป็น Google Sheet (https://docs.google.com/spreadsheets/d/…)" });
     if (new Set(clean).size !== clean.length) return setMsg({ ok: false, text: "มีลิงก์ซ้ำ" });
+    if (clean.length > MAX_LINKS) return setMsg({ ok: false, text: `ใส่ได้สูงสุด ${MAX_LINKS} ลิงก์ (ตอนนี้ ${clean.length})` });
     setBusy(true);
     setMsg(null);
     try {
@@ -95,11 +109,30 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
     try {
       await saveAffiliateSheets(preview.draft);
       setPreview(null);
+      setImported(true);
       setMsg({ ok: true, text: "นำเข้าแล้ว · Affiliate Dashboard ใช้ข้อมูลชุดนี้" });
       loadStored();
       onSaved?.();
     } catch {
       setMsg({ ok: false, text: "บันทึกไม่สำเร็จ (ต้องเป็น admin)" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Links are only needed for the next update: clearing them keeps every imported month.
+  const [imported, setImported] = useState(false);
+  const clearLinks = async () => {
+    if (!window.confirm("ล้างลิงก์ทั้งหมด? ข้อมูลที่นำเข้าแล้วยังอยู่ครบ รอบหน้าใส่เฉพาะลิงก์ของเดือนที่จะอัปเดต")) return;
+    setBusy(true);
+    try {
+      await saveAffiliateSheetLinks([], auth.currentUser?.email || "");
+      setLinks([""]);
+      setSaved([]);
+      setImported(false);
+      setMsg({ ok: true, text: "ล้างลิงก์แล้ว · ข้อมูลในระบบอยู่ครบ" });
+    } catch {
+      setMsg({ ok: false, text: "ล้างลิงก์ไม่สำเร็จ (ต้องเป็น admin)" });
     } finally {
       setBusy(false);
     }
@@ -134,6 +167,11 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
   };
 
   const linkStatus = (url: string) => status?.links?.find((l) => l.url === url);
+  // Two saved links of the same kind and month: the later one replaces the earlier on import.
+  const sameMonth = (st: { url?: string; kind?: string; metrics?: string; month?: string }) =>
+    !!st.month && (status?.links || []).filter((x) => x.ok && x.kind === st.kind && x.metrics === st.metrics && x.month === st.month && saved.includes(String(x.url))).length > 1;
+  const when = (st: { month?: string; from?: string; to?: string; rows?: number }) =>
+    st.month && wholeMonth(st) ? thMonth(st.month) : st.from ? `${thDay(st.from)} – ${thDay(st.to)}${st.month ? " (ไม่ครบเดือน)" : ""}` : `${st.rows} แถว`;
   const d = preview?.draft;
 
   return (
@@ -153,7 +191,10 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
             </span>
           )}
         </li>
-        <li>วางลิงก์ทั้งหมดด้านล่าง (ลำดับไม่สำคัญ · ไฟล์ที่วันที่ครบ 1 เดือนจะเป็นข้อมูลของเดือนนั้นเอง) แล้วกดบันทึก</li>
+        <li>
+          วางลิงก์<b>เฉพาะไฟล์ของเดือนที่ต้องการอัปเดต</b> ไม่ต้องมีครบทุกเดือน ระบบอ่านเองว่าแต่ละไฟล์เป็นเดือนไหน และนำเข้าแทนเฉพาะเดือนนั้น ·
+          เดือนที่นำเข้าไว้แล้วอยู่ในระบบตามเดิม (ดูได้ที่ "ข้อมูลในระบบ" ด้านล่าง) แล้วกดบันทึก
+        </li>
         <li>เมื่อเพิ่มลิงก์หรือแก้ Sheet: กด "ดึงจาก Sheet ตอนนี้" (เลือก mode <b>revenue-sheet</b> แล้ว Run workflow ~1 นาที) → "โหลดผลล่าสุด" → "ตรวจและนำเข้า"</li>
       </ol>
 
@@ -176,7 +217,7 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
               {st && (
                 <small className={st.ok ? "rev-sheet-ok" : "rev-sheet-bad"}>
                   {st.ok
-                    ? `${KIND[st.kind || "unknown"]}${st.metrics === "clicks" ? " (คลิก/impressions · ไม่มีค่าคอม)" : ""} · ${st.month ? thMonth(st.month) : st.from ? `${thDay(st.from)} – ${thDay(st.to)}` : `${st.rows} แถว`}${st.kind !== "period" ? ` · ${st.rows} แถว` : ""}`
+                    ? `${KIND[st.kind || "unknown"]}${st.metrics === "clicks" ? " (คลิก/impressions · ไม่มีค่าคอม)" : ""} · ${when(st)}${st.kind !== "period" ? ` · ${st.rows} แถว` : ""}${sameMonth(st) ? " · ⚠️ มีอีกลิงก์ของเดือนเดียวกัน" : ""}${endedShort(st) ? ` · ⚠️ เดือนนี้จบแล้ว แต่ไฟล์มีถึง ${thDay(st.to)}` : ""}`
                     : st.error}
                 </small>
               )}
@@ -188,11 +229,21 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
         <button type="button" className="rev-sheet-link" onClick={() => setLinks([...links, ""])}>
           <Plus size={13} /> เพิ่มลิงก์
         </button>
+        <span className="aff-sheet-count">
+          {clean.length} / {MAX_LINKS} ลิงก์{saved.length !== clean.length ? ` (บันทึกไว้ ${saved.length})` : ""}
+        </span>
         <button type="button" className="rev-sheet-save" disabled={busy || !dirty} onClick={save}>
           {busy ? <Loader2 size={14} className="animate-spin" /> : "บันทึกลิงก์"}
         </button>
       </div>
       {msg && <p className={msg.ok ? "rev-sheet-ok" : "rev-sheet-bad"}>{msg.text}</p>}
+      {imported && saved.length > 0 && (
+        <div className="rev-sheet-row">
+          <button type="button" className="rev-sheet-link" disabled={busy} onClick={clearLinks}>
+            <Trash2 size={13} /> ล้างลิงก์ที่นำเข้าแล้ว (ข้อมูลยังอยู่)
+          </button>
+        </div>
+      )}
 
       {saved.length > 0 && (
         <div className="rev-sheet-draft">
@@ -218,22 +269,53 @@ export function AffiliateSheetSettings({ onSaved }: { onSaved?: () => void }) {
         </div>
       )}
 
-      {storedMonths.length > 0 && (
-        <div className="aff-sheet-stored">
-          <small>ข้อมูลรายเดือน (สินค้า/คลิป) ที่อยู่ในระบบ:</small>
-          {storedMonths.map((m) => (
-            <span key={m}>
-              {thMonth(m)}
-              <small>
-                {stored?.productsByMonth?.[m] ? "สินค้า" : ""}
-                {stored?.productsByMonth?.[m] && stored?.contentsByMonth?.[m] ? " · " : ""}
-                {stored?.contentsByMonth?.[m] ? "คลิป" : ""}
-              </small>
-              <button type="button" aria-label={`ลบข้อมูลของ ${thMonth(m)}`} disabled={busy} onClick={() => removeMonth(m)}>
-                <Trash2 size={11} />
-              </button>
-            </span>
-          ))}
+      {stored && (storedMonths.length > 0 || stored.monthly.length > 0) && (
+        <div className="aff-sheet-table">
+          <h4>ข้อมูลในระบบ</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>เดือน</th>
+                <th>ยอดรายเดือน</th>
+                <th>รายสินค้า</th>
+                <th>รายคลิป</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {[...new Set([...storedMonths, ...stored.monthly.map((x) => x.month)])].sort().reverse().map((m) => {
+                const src = (kind: string, metrics?: string) => (stored.sources || []).find((x) => x.kind === kind && x.month === m && (!metrics || (x.metrics || "revenue") === metrics));
+                const cell = (has: boolean, st?: { from?: string; to?: string; month?: string }) =>
+                  !has ? <td className="none">–</td> : (
+                    <td className={st && endedShort(st) ? "warn" : ""}>
+                      ✓{st?.from && st.month && !wholeMonth(st) ? ` ถึง ${thDay(st.to)}${endedShort(st) ? " ⚠️" : ""}` : ""}
+                    </td>
+                  );
+                const rev = src("product", "revenue");
+                const clicks = src("product", "clicks");
+                return (
+                  <tr key={m}>
+                    <td>{thMonth(m)}</td>
+                    {cell(stored.monthly.some((x) => x.month === m))}
+                    <td className={!stored.productsByMonth?.[m] ? "none" : rev && endedShort(rev) ? "warn" : ""}>
+                      {!stored.productsByMonth?.[m]
+                        ? "–"
+                        : [rev ? `ค่าคอม${rev.from && !wholeMonth(rev) ? ` ถึง ${thDay(rev.to)}` : ""}` : "", clicks ? "คลิก" : ""].filter(Boolean).join(" · ") || "✓"}
+                    </td>
+                    {cell(!!stored.contentsByMonth?.[m], src("content"))}
+                    <td>
+                      {(stored.productsByMonth?.[m] || stored.contentsByMonth?.[m]) && (
+                        <button type="button" aria-label={`ลบข้อมูลรายสินค้า/รายคลิปของ ${thMonth(m)}`} disabled={busy} onClick={() => removeMonth(m)}>
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <small>ไม่ต้องเก็บลิงก์ของเดือนเหล่านี้ไว้ ข้อมูลอยู่ในระบบแล้ว · ⚠️ = เดือนจบแล้วแต่ไฟล์ที่นำเข้ามีข้อมูลไม่ครบเดือน</small>
         </div>
       )}
 
