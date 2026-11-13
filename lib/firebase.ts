@@ -15,7 +15,7 @@ import type { AffiliateData } from "@/lib/dashboard/affiliateParser";
 import type { RevenueData } from "@/lib/dashboard/revenueParser";
 import type { RevenueApiMonth } from "@/lib/dashboard/revenueApi";
 import { joinFromStore, splitForStore, type AffiliateSheets, type AffiliateStoreMain, type AffiliateStoreMonth } from "@/lib/dashboard/affiliateSheets";
-import { applySplitChanges, planProgramSplits, readProgramEdits, readSplitMoved, type ProgramSplit } from "@/lib/dashboard/programSplits";
+import { applySplitChanges, lockedByEdits, planProgramSplits, readProgramEdits, readSplitMoved, type ProgramSplit } from "@/lib/dashboard/programSplits";
 import { rowKey } from "@/lib/dashboard/postKey";
 
 export const firebaseConfig = {
@@ -184,7 +184,7 @@ export async function applyProgramSplitsToFirebase(
       chunkOf.push(c);
     }
   });
-  const plan = planProgramSplits(rows, rules, readSplitMoved(movedSnap.data()), rowKey, new Set(Object.keys(readProgramEdits(editsSnap.data()))));
+  const plan = planProgramSplits(rows, rules, readSplitMoved(movedSnap.data()), rowKey, lockedByEdits(readProgramEdits(editsSnap.data())));
   await setDoc(doc(db, "syncConfig", "programSplitsMoved"), { moved: plan.moved, updatedAt: now });
   if (!plan.changes.length) return { moved: 0, back: 0, chunks: 0 };
 
@@ -204,11 +204,12 @@ export async function applyProgramSplitsToFirebase(
 }
 
 /**
- * An admin sets the Program of one clip (every platform's post of it): masterData read
- * fresh, only the chunks holding those rows written, the fast-open copy rebuilt, and the
- * choice kept in syncConfig/programEdits so the sync and the split rules leave it as set.
+ * An admin sets the Program and/or Topic_Type of one clip (every platform's post of it):
+ * masterData read fresh, only the chunks holding those rows written, the fast-open copy
+ * rebuilt, and the choice kept in syncConfig/programEdits so the sync and the split rules
+ * leave it as set.
  */
-export async function setClipProgramInFirebase(keys: string[], program: string, updatedBy: string): Promise<{ rows: number }> {
+export async function setClipFieldsInFirebase(keys: string[], fields: { program?: string; topicType?: string }, updatedBy: string): Promise<{ rows: number }> {
   const now = new Date().toISOString();
   const want = new Set(keys.filter(Boolean));
   const snapshot = await getDocs(collection(db, "masterData"));
@@ -219,16 +220,21 @@ export async function setClipProgramInFirebase(keys: string[], program: string, 
   const perChunk = chunks.map((d) => d.data().rows as RawRow[]);
   perChunk.forEach((list, c) => {
     for (const r of list) {
-      if (r.Platform !== "TV" && want.has(rowKey(r)) && r.Program !== program) {
-        r.Program = program;
+      rows.push(r);
+      if (r.Platform === "TV" || !want.has(rowKey(r))) continue;
+      if (fields.program && r.Program !== fields.program) {
+        r.Program = fields.program;
         touched.add(c);
       }
-      rows.push(r);
+      if (fields.topicType && r.Topic_Type !== fields.topicType) {
+        r.Topic_Type = fields.topicType;
+        touched.add(c);
+      }
     }
   });
   await setDoc(
     doc(db, "syncConfig", "programEdits"),
-    { edits: Object.fromEntries([...want].map((k) => [k, { program, by: updatedBy, at: now }])), updatedAt: now, updatedBy },
+    { edits: Object.fromEntries([...want].map((k) => [k, { ...fields, by: updatedBy, at: now }])), updatedAt: now, updatedBy },
     { merge: true },
   );
   if (!touched.size) return { rows: 0 };

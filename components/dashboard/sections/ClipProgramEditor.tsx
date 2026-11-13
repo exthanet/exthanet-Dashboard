@@ -1,12 +1,12 @@
 "use client";
-// Admins: set which show (Program) a clip belongs to, on every platform it was posted to.
-// Saved straight to masterData and kept in syncConfig/programEdits, so the daily sync and
-// the แยกรายการย่อย rules leave it as set.
+// Admins: set which show (Program) and which content type (Topic_Type) a clip belongs to,
+// on every platform it was posted to. Saved straight to masterData and kept in
+// syncConfig/programEdits, so the daily sync and the แยกรายการย่อย rules leave it as set.
 import { useMemo, useState } from "react";
 import { Save } from "lucide-react";
 import type { RecordRow } from "@/lib/dashboard/types";
 import { postId } from "@/lib/dashboard/postKey";
-import { setClipProgramInFirebase } from "@/lib/firebase";
+import { setClipFieldsInFirebase } from "@/lib/firebase";
 import { useAdmin } from "@/components/dashboard/shared/AdminContext";
 import { track } from "@/lib/loadingBar";
 
@@ -16,30 +16,40 @@ const keyOf = (r: RecordRow) => {
   return id ? `${r.platform}|${id}` : "";
 };
 
+/** Values in use on online rows, most used first, with the current one kept on the list. */
+function optionsOf(allRows: RecordRow[], pick: (r: RecordRow) => string, current: string): string[] {
+  const count = new Map<string, number>();
+  for (const r of allRows) {
+    const v = pick(r);
+    if (r.platform !== "TV" && v) count.set(v, (count.get(v) || 0) + 1);
+  }
+  return [...new Set([current, ...[...count].sort((a, b) => b[1] - a[1]).map(([v]) => v)])];
+}
+
 export function ClipProgramEditor({ posts, allRows }: { posts: RecordRow[]; allRows: RecordRow[] }) {
   const { isAdmin, email } = useAdmin();
-  const current = posts[0]?.program || UNKNOWN;
-  const [value, setValue] = useState(current);
+  const currentProgram = posts[0]?.program || UNKNOWN;
+  const currentType = posts[0]?.topicType || UNKNOWN;
+  const [program, setProgram] = useState(currentProgram);
+  const [topicType, setTopicType] = useState(currentType);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState("");
   const [error, setError] = useState("");
-  // Online programs, most posts first.
-  const programs = useMemo(() => {
-    const count = new Map<string, number>();
-    for (const r of allRows) if (r.platform !== "TV" && r.program) count.set(r.program, (count.get(r.program) || 0) + 1);
-    return [...new Set([current, ...[...count].sort((a, b) => b[1] - a[1]).map(([p]) => p)])];
-  }, [allRows, current]);
+  const programs = useMemo(() => optionsOf(allRows, (r) => r.program, currentProgram), [allRows, currentProgram]);
+  const types = useMemo(() => optionsOf(allRows, (r) => r.topicType, currentType), [allRows, currentType]);
   if (!isAdmin) return null;
   const keys = posts.map(keyOf).filter(Boolean);
   const platforms = [...new Set(posts.map((p) => p.platform))].join(", ");
+  const changed = program !== currentProgram || topicType !== currentType;
 
   const save = async () => {
-    if (!keys.length || value === current) return;
+    if (!keys.length || !changed) return;
     setSaving(true);
     setError("");
     setDone("");
     try {
-      const r = await track(setClipProgramInFirebase(keys, value, email));
+      const fields = { ...(program !== currentProgram ? { program } : {}), ...(topicType !== currentType ? { topicType } : {}) };
+      const r = await track(setClipFieldsInFirebase(keys, fields, email));
       setDone(`บันทึกแล้ว ${r.rows} โพสต์ · โหลดหน้าใหม่เพื่อดูผลในรายงาน`);
     } catch {
       setError("บันทึกไม่สำเร็จ (ต้องเป็น admin)");
@@ -52,14 +62,23 @@ export function ClipProgramEditor({ posts, allRows }: { posts: RecordRow[]; allR
     <div className="clip-program-edit">
       <label>
         <b>รายการ</b>
-        <select value={value} onChange={(e) => setValue(e.target.value)} disabled={saving}>
+        <select value={program} onChange={(e) => setProgram(e.target.value)} disabled={saving}>
           {programs.map((p) => (
             <option key={p}>{p}</option>
           ))}
         </select>
       </label>
-      {value !== current && <span className="clip-program-was">เดิม: {current}</span>}
-      <button type="button" onClick={save} disabled={saving || value === current || !keys.length}>
+      {program !== currentProgram && <span className="clip-program-was">เดิม: {currentProgram}</span>}
+      <label>
+        <b>ประเภท</b>
+        <select value={topicType} onChange={(e) => setTopicType(e.target.value)} disabled={saving}>
+          {types.map((t) => (
+            <option key={t}>{t}</option>
+          ))}
+        </select>
+      </label>
+      {topicType !== currentType && <span className="clip-program-was">เดิม: {currentType}</span>}
+      <button type="button" onClick={save} disabled={saving || !changed || !keys.length}>
         <Save size={14} /> {saving ? "กำลังบันทึก..." : "บันทึก"}
       </button>
       <small>

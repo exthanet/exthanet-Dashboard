@@ -112,16 +112,24 @@ export function splitParents(rules: ProgramSplit[]): Map<string, string> {
   return new Map(rules.filter((r) => r.name.trim() && r.parent.trim()).map((r) => [r.name.trim(), r.parent.trim()]));
 }
 
-/** An admin's hand-set Program per row (syncConfig/programEdits): rowKey → program. */
-export type ProgramEdits = Record<string, { program: string; by?: string; at?: string }>;
+/** What an admin set by hand per row (syncConfig/programEdits): rowKey → program and/or Topic_Type. */
+export type ProgramEdits = Record<string, { program?: string; topicType?: string; by?: string; at?: string }>;
 
 export function readProgramEdits(data: unknown): ProgramEdits {
   const e = (data as { edits?: unknown })?.edits;
   const out: ProgramEdits = {};
   if (!e || typeof e !== "object") return out;
-  for (const [k, v] of Object.entries(e as Record<string, Record<string, unknown>>)) if (v && String(v.program ?? "").trim()) out[k] = { program: String(v.program).trim(), ...(v.by ? { by: String(v.by) } : {}), ...(v.at ? { at: String(v.at) } : {}) };
+  for (const [k, v] of Object.entries(e as Record<string, Record<string, unknown>>)) {
+    const program = String(v?.program ?? "").trim();
+    const topicType = String(v?.topicType ?? "").trim();
+    if (!program && !topicType) continue;
+    out[k] = { ...(program ? { program } : {}), ...(topicType ? { topicType } : {}), ...(v.by ? { by: String(v.by) } : {}), ...(v.at ? { at: String(v.at) } : {}) };
+  }
   return out;
 }
+
+/** Rows whose Program an admin set: the แยกรายการย่อย rules leave them alone. */
+export const lockedByEdits = (edits: ProgramEdits) => new Set(Object.entries(edits).filter(([, e]) => e.program).map(([k]) => k));
 
 /** Firestore → rules / moved, tolerating missing or odd fields. */
 export function readSplits(data: unknown): ProgramSplit[] {

@@ -78,5 +78,8 @@ test("a row an admin set by hand is never moved by a rule; edits are read from F
   // A moved row the admin later locked is not sent back either.
   const back = planProgramSplits([row("a", "BetterTrade 2026", "x")], [], { bt: { name: "BetterTrade 2026", parent: "ไม่ระบุ", keys: ["a"] } }, key, new Set(["a"]));
   assert.deepEqual(back.changes, []);
-  assert.deepEqual(readProgramEdits({ edits: { "TikTok|1": { program: " Off Script Off Record ", by: "x" }, "TikTok|2": { program: "" } } }), { "TikTok|1": { program: "Off Script Off Record", by: "x" } });
+  assert.deepEqual(readProgramEdits({ edits: { "TikTok|1": { program: " Off Script Off Record ", by: "x" }, "TikTok|2": { program: "" }, "TikTok|3": { topicType: "ข่าวการเมือง" } } }), { "TikTok|1": { program: "Off Script Off Record", by: "x" }, "TikTok|3": { topicType: "ข่าวการเมือง" } });
+  // Only a hand-set Program locks a row against the rules; a hand-set type alone does not.
+  const { lockedByEdits } = await import("../lib/dashboard/programSplits.ts");
+  assert.deepEqual([...lockedByEdits({ a: { program: "x" }, b: { topicType: "y" } })], ["a"]);
 });
